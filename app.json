@@ -1,5 +1,12 @@
 {
-  "plugins": [
-    "expo-router"
-  ]
+  "expo": {
+    "name": "FitMatch",
+    "slug": "FitMatch",
+    "version": "1.0.0",
+    "scheme": "fitmatch",
+    "ios": {
+      "supportsTablet": true
+    },
+    "plugins": ["expo-router"]
+  }
 }
