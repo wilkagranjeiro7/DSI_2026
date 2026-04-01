@@ -1,5 +1,5 @@
 {
-  "plugins": [
-    "expo-router"
-  ]
+  "expo": {
+    "sdkVersion": "54.0.0"
+  }
 }
