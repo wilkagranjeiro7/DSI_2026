@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { 
   StyleSheet, View, Text, TextInput, TouchableOpacity, 
-  Image, SafeAreaView, ActivityIndicator
+  Image, ActivityIndicator, KeyboardAvoidingView, 
+  Platform, ScrollView, TouchableWithoutFeedback, Keyboard
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AuthService from '../src/services/AuthService';
 
-// O "export default" daqui foi transformado em constante
 const SignUpScreen = () => {
   const router = useRouter();
   
@@ -33,73 +33,92 @@ const SignUpScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    // 1. O KeyboardAvoidingView garante que os inputs subam com o teclado
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.header}>
         <Text style={styles.headerText}>FitMatch</Text>
       </View>
 
-      <View style={styles.body}>
-        <Image 
-          source={require('../assets/images/LogoFitMatch.png')} 
-          style={styles.logo} 
-        />
-        <Text style={styles.title}>Criar uma conta</Text>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Seu nome</Text>
-          <View style={[styles.inputContainer, errorMsg && !nome ? styles.inputError : null]}>
-            <TextInput 
-            style={styles.input} 
-            placeholder="João Silva" 
-            value={nome}
-            onChangeText={setNome} />
-          </View>
-
-          <Text style={styles.label}>E-mail</Text>
-          <View style={[styles.inputContainer, errorMsg && !email ? styles.inputError : null]}>
-            <TextInput 
-              style={styles.input} 
-              placeholder="email@exemplo.com" 
-              keyboardType="email-address"
-              value={email}
-              autoCapitalize="none"
-              onChangeText={setEmail} 
-            />
-          </View>
-
-          <Text style={styles.label}>Senha</Text>
-          <View style={[styles.inputContainer, errorMsg && !senha ? styles.inputError : null]}>
-            <TextInput 
-              style={styles.input} 
-              placeholder="******" 
-              secureTextEntry 
-              value={senha}
-              onChangeText={setSenha} 
-            />
-          </View>
-        </View>
-
-        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-
-        <TouchableOpacity 
-          style={[styles.button, loading && { opacity: 0.7 }]} 
-          onPress={handleRegister}
-          disabled={loading}
+      {/* 2. TouchableWithoutFeedback permite fechar o teclado ao clicar fora dos inputs */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        
+        {/* 3. ScrollView permite rolar a tela, essencial para logos grandes */}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Cadastrar</Text>
-          )}
-        </TouchableOpacity>
+          <Image 
+            source={require('../assets/images/LogoFitMatch.png')} 
+            style={styles.logo} 
+            resizeMode="contain"
+          />
+          
+          <Text style={styles.title}>Criar uma conta</Text>
 
-        <TouchableOpacity onPress={() => router.push('/')}>
-          <Text style={styles.footerText}>
-            Já tem uma conta? <Text style={styles.link}>Entrar</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Seu nome</Text>
+            <View style={[styles.inputContainer, errorMsg && !nome ? styles.inputError : null]}>
+              <TextInput 
+                style={styles.input} 
+                placeholder="João Silva" 
+                value={nome}
+                onChangeText={setNome} 
+              />
+            </View>
+
+            <Text style={styles.label}>E-mail</Text>
+            <View style={[styles.inputContainer, errorMsg && !email ? styles.inputError : null]}>
+              <TextInput 
+                style={styles.input} 
+                placeholder="email@exemplo.com" 
+                keyboardType="email-address"
+                value={email}
+                autoCapitalize="none"
+                onChangeText={setEmail} 
+              />
+            </View>
+
+            <Text style={styles.label}>Senha</Text>
+            <View style={[styles.inputContainer, errorMsg && !senha ? styles.inputError : null]}>
+              <TextInput 
+                style={styles.input} 
+                placeholder="******" 
+                secureTextEntry 
+                value={senha}
+                onChangeText={setSenha} 
+              />
+            </View>
+          </View>
+
+          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
+          <TouchableOpacity 
+            style={[styles.button, loading && { opacity: 0.7 }]} 
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Cadastrar</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.push('/')}>
+            <Text style={styles.footerText}>
+              Já tem uma conta? <Text style={styles.link}>Entrar</Text>
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Espaçamento extra no final para garantir que o último botão não fique colado na borda */}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -110,12 +129,26 @@ const styles = StyleSheet.create({
     height: 100, 
     justifyContent: 'center', 
     alignItems: 'center',
-    paddingTop: 40 
+    paddingTop: 40,
+    zIndex: 10, // Garante que o header fique por cima
   },
   headerText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
-  body: { flex: 1, padding: 30, alignItems: 'center' },
-  logo: { width: 90, height: 90, marginBottom: 15, resizeMode: 'contain' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 25 },
+  
+  // Alterado de 'body' para 'scrollContainer'
+  scrollContainer: { 
+    paddingHorizontal: 30, 
+    paddingTop: 20, 
+    alignItems: 'center',
+    flexGrow: 1, // Permite que o conteúdo estique e role
+  },
+  
+  logo: { 
+    width: 320, 
+    height: 280, 
+    marginBottom: 5, 
+    resizeMode: 'contain' 
+  },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
   inputGroup: { width: '100%' },
   label: { color: '#888', marginBottom: 5, fontSize: 14, marginLeft: 5 },
   inputContainer: {
@@ -147,5 +180,4 @@ const styles = StyleSheet.create({
   link: { color: '#4A90E2', fontWeight: 'bold' }
 });
 
-// EXPORTAÇÃO NO FINAL É MAIS SEGURA PARA O CACHE
 export default SignUpScreen;

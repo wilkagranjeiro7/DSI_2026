@@ -1,5 +1,11 @@
 {
   "expo": {
-    "sdkVersion": "54.0.0"
+    "name": "FitMatch",
+    "slug": "fitmatch-dsi",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "android": {
+      "softwareKeyboardLayoutMode": "resize"
+    }
   }
 }
