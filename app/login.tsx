@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -24,27 +25,20 @@ export default function LoginScreen() {
   const [erroEmail, setErroEmail] = useState<string>("");
   const [erroSenha, setErroSenha] = useState<string>("");
 
-  // Validação de E-mail em tempo real
   const handleEmailChange = (texto: string): void => {
     setEmail(texto);
 
-    // Se o usuário apagar tudo
     if (texto.trim() === "") {
       setErroEmail("");
-    }
-    // Validação instantânea: se digitar nome sem @ ou .com (ex: Kassiane Silva)
-    else if (!texto.includes("@") || !texto.includes(".com")) {
+    } else if (!texto.includes("@") || !texto.includes(".com")) {
       setErroEmail("E-mail inválido (use @ e .com)");
-    }
-    // Se estiver correto, limpa o erro na hora
-    else {
+    } else {
       setErroEmail("");
     }
   };
 
   const handleSenhaChange = (texto: string): void => {
     setSenha(texto);
-    // Limpa o erro assim que o usuário começar a digitar na senha
     if (erroSenha) setErroSenha("");
   };
 
@@ -70,7 +64,6 @@ export default function LoginScreen() {
   const validarFormulario = (): boolean => {
     let valido = true;
 
-    // Validação final do E-mail
     if (email.trim() === "") {
       setErroEmail("O e-mail é obrigatório");
       valido = false;
@@ -79,11 +72,10 @@ export default function LoginScreen() {
       valido = false;
     }
 
-    // Validação da Senha
     const temMaiuscula = /[A-Z]/.test(senha);
 
     if (senha.trim() === "") {
-      setErroSenha("A senha é obrigatória"); // Mensagem para campo vazio
+      setErroSenha("A senha é obrigatória");
       valido = false;
     } else if (senha.length < 6) {
       setErroSenha("A senha deve ter pelo menos 6 caracteres");
@@ -113,9 +105,19 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* 🔥 HEADER LARANJA NO TOPO */}
+      <View style={styles.headerTop}>
+        <Text style={styles.headerTitle}>FitMatch</Text>
+      </View>
+
       <View style={styles.content}>
+        {/* LOGO */}
         <View style={styles.header}>
-          <View style={styles.logoPlaceholder} />
+          <Image
+            source={require("../assets/images/logo.png")}
+            style={styles.logo}
+          />
+
           <Text style={styles.brandText}>
             Fit<Text style={styles.brandMatch}>Match</Text>
           </Text>
@@ -133,7 +135,7 @@ export default function LoginScreen() {
               style={[styles.input, erroEmail ? styles.inputErro : null]}
               placeholder="Digite seu email"
               value={email}
-              onChangeText={handleEmailChange} // Validação em tempo real
+              onChangeText={handleEmailChange}
               autoCapitalize="none"
               keyboardType="email-address"
             />
@@ -171,28 +173,49 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFFFF" },
+
+  headerTop: {
+    width: "100%",
+    height: 100,
+    backgroundColor: "#F38D10",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingBottom: 15,
+  },
+
+  headerTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
     paddingHorizontal: 30,
+    marginTop: 20,
   },
+
   header: { alignItems: "center", marginBottom: 30 },
-  logoPlaceholder: {
-    width: 60,
-    height: 60,
-    backgroundColor: "#F38D10",
-    borderRadius: 30,
+
+  logo: {
+    width: 100,
+    height: 100,
     marginBottom: 10,
+    resizeMode: "contain",
   },
+
   brandText: { fontSize: 28, fontWeight: "bold", color: "#000" },
   brandMatch: { color: "#F38D10" },
+
   welcomeContainer: { alignItems: "center", marginBottom: 30 },
   title: { fontSize: 24, fontWeight: "bold", color: "#000" },
   subtitle: { fontSize: 16, color: "#888", marginTop: 5 },
+
   form: { width: "100%" },
   inputGroup: { marginBottom: 15 },
   label: { fontSize: 14, color: "#AAA", marginBottom: 5, marginLeft: 5 },
+
   input: {
     width: "100%",
     height: 50,
@@ -202,8 +225,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     color: "#000",
   },
+
   inputErro: { borderColor: "#FF0000" },
   errorText: { color: "#FF0000", fontSize: 12, marginTop: 2, marginLeft: 5 },
+
   button: {
     backgroundColor: "#F38D10",
     height: 55,
@@ -212,7 +237,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 20,
   },
+
   buttonText: { color: "white", fontSize: 18, fontWeight: "bold" },
+
   forgotContainer: { marginTop: 20, alignItems: "center" },
   forgotText: { color: "#888", fontSize: 14 },
 });
