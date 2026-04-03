@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
   Alert,
@@ -10,6 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+// --- IMPORTAÇÕES DO FIREBASE ---
+import { addDoc, collection } from "firebase/firestore";
+import { db } from "../firebaseConfig";
 
 // Interface para o TypeScript
 interface TentativaLogin {
@@ -27,14 +30,7 @@ export default function LoginScreen() {
 
   const handleEmailChange = (texto: string): void => {
     setEmail(texto);
-
-    if (texto.trim() === "") {
-      setErroEmail("");
-    } else if (!texto.includes("@") || !texto.includes(".com")) {
-      setErroEmail("E-mail inválido (use @ e .com)");
-    } else {
-      setErroEmail("");
-    }
+    if (erroEmail) setErroEmail("");
   };
 
   const handleSenhaChange = (texto: string): void => {
@@ -42,47 +38,43 @@ export default function LoginScreen() {
     if (erroSenha) setErroSenha("");
   };
 
-  const salvarDadosNoStorage = async (
+  // --- FUNÇÃO PARA SALVAR NO FIREBASE ---
+  const salvarNoFirebase = async (
     novaTentativa: TentativaLogin,
   ): Promise<void> => {
     try {
-      const listaExistente = await AsyncStorage.getItem("@FitMatch:usuarios");
-      let listaAtualizada: TentativaLogin[] = listaExistente
-        ? JSON.parse(listaExistente)
-        : [];
-      listaAtualizada.push(novaTentativa);
-      await AsyncStorage.setItem(
-        "@FitMatch:usuarios",
-        JSON.stringify(listaAtualizada),
-      );
-      console.log("--- STORAGE ATUALIZADO ---", listaAtualizada);
+      await addDoc(collection(db, "usuarios"), novaTentativa);
+      console.log("Dados enviados para o Firebase com sucesso!");
     } catch (error) {
-      console.log("Erro ao salvar no Storage:", error);
+      console.error("Erro ao salvar no Firebase:", error);
+      throw error;
     }
   };
 
   const validarFormulario = (): boolean => {
     let valido = true;
 
+    // Validação do Email
     if (email.trim() === "") {
       setErroEmail("O e-mail é obrigatório");
       valido = false;
     } else if (!email.includes("@") || !email.includes(".com")) {
       setErroEmail("E-mail inválido (use @ e .com)");
       valido = false;
+    } else {
+      setErroEmail("");
     }
 
-    const temMaiuscula = /[A-Z]/.test(senha);
-
+    // --- SENHA CORRIGIDA PARA FICAR IGUAL AO SIGNUP ---
+    // Agora só verifica se está vazio ou se tem menos de 6 caracteres
     if (senha.trim() === "") {
       setErroSenha("A senha é obrigatória");
       valido = false;
     } else if (senha.length < 6) {
       setErroSenha("A senha deve ter pelo menos 6 caracteres");
       valido = false;
-    } else if (!temMaiuscula) {
-      setErroSenha("A senha deve ter pelo menos uma letra maiúscula");
-      valido = false;
+    } else {
+      setErroSenha("");
     }
 
     return valido;
@@ -97,27 +89,28 @@ export default function LoginScreen() {
       data: new Date().toLocaleString(),
     };
 
-    await salvarDadosNoStorage(novaTentativa);
-    Alert.alert("Sucesso", "Login registrado com sucesso!");
-    setEmail("");
-    setSenha("");
+    try {
+      await salvarNoFirebase(novaTentativa);
+      Alert.alert("Sucesso", "Login registrado no Firebase!");
+      setEmail("");
+      setSenha("");
+    } catch (error) {
+      Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 🔥 HEADER LARANJA NO TOPO */}
       <View style={styles.headerTop}>
         <Text style={styles.headerTitle}>FitMatch</Text>
       </View>
 
       <View style={styles.content}>
-        {/* LOGO */}
         <View style={styles.header}>
           <Image
             source={require("../assets/images/logo.png")}
             style={styles.logo}
           />
-
           <Text style={styles.brandText}>
             Fit<Text style={styles.brandMatch}>Match</Text>
           </Text>
@@ -173,7 +166,6 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFFFF" },
-
   headerTop: {
     width: "100%",
     height: 100,
@@ -182,40 +174,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 15,
   },
-
-  headerTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
   content: {
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 30,
     marginTop: 20,
   },
-
   header: { alignItems: "center", marginBottom: 30 },
-
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 10,
-    resizeMode: "contain",
-  },
-
+  logo: { width: 100, height: 100, marginBottom: 10, resizeMode: "contain" },
   brandText: { fontSize: 28, fontWeight: "bold", color: "#000" },
   brandMatch: { color: "#F38D10" },
-
   welcomeContainer: { alignItems: "center", marginBottom: 30 },
   title: { fontSize: 24, fontWeight: "bold", color: "#000" },
   subtitle: { fontSize: 16, color: "#888", marginTop: 5 },
-
   form: { width: "100%" },
   inputGroup: { marginBottom: 15 },
   label: { fontSize: 14, color: "#AAA", marginBottom: 5, marginLeft: 5 },
-
   input: {
     width: "100%",
     height: 50,
@@ -225,10 +200,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     color: "#000",
   },
-
   inputErro: { borderColor: "#FF0000" },
   errorText: { color: "#FF0000", fontSize: 12, marginTop: 2, marginLeft: 5 },
-
   button: {
     backgroundColor: "#F38D10",
     height: 55,
@@ -237,9 +210,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 20,
   },
-
   buttonText: { color: "white", fontSize: 18, fontWeight: "bold" },
-
   forgotContainer: { marginTop: 20, alignItems: "center" },
   forgotText: { color: "#888", fontSize: 14 },
 });
