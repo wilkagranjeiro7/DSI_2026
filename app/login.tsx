@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -94,6 +95,7 @@ export default function LoginScreen() {
       Alert.alert("Sucesso", "Login registrado no Firebase!");
       setEmail("");
       setSenha("");
+      router.replace("/home")
     } catch (error) {
       Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
     }
