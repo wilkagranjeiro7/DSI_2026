@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Alert,
 } from "react-native";
 import AuthService from "../src/services/AuthService";
 
@@ -30,16 +31,26 @@ const SignUpScreen = () => {
       setErrorMsg("Por favor, preencha todos os campos.");
       return;
     }
-    setErrorMsg("");
+    setErrorMsg('');
     setLoading(true);
     try {
+    // Tenta registrar
       await AuthService.register(nome, email, senha);
+    
+    // SUCESSO! 
+    // Mostra o alerta
+      Alert.alert("Sucesso", "Conta criada com sucesso! Seja bem-vindo(a).");
+    
+    // Navega para a tela principal
+      router.replace('/login'); 
+    
     } catch (err: any) {
+    // Se der erro, o catch captura e mostra aqui
       setErrorMsg(err.message);
     } finally {
       setLoading(false);
     }
-  };
+};
 
   return (
     // 1. O KeyboardAvoidingView garante que os inputs subam com o teclado
