@@ -1,3 +1,7 @@
+# commit 1
+**Mensagem sugerida:** `adiciona componente SmallCard e grade de atalhos`
+
+```tsx
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
@@ -21,6 +25,33 @@ const colors = {
   border: "#F28C1B",
   tabBg: "#FFFFFF",
 };
+
+// Componente reutilizável para os cards menores da home
+function SmallCard({
+  title,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <View style={styles.smallCard}>
+      <View style={styles.smallBadge}>
+        <Text style={styles.smallBadgeText}>Notificação</Text>
+      </View>
+
+      {/* Ícone principal do card */}
+      <View style={styles.smallIconArea}>{icon}</View>
+
+      <View style={styles.smallCardContent}>
+        <Text style={styles.smallCardTitle}>{title}</Text>
+        <Text style={styles.smallCardSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   return (
@@ -96,6 +127,33 @@ export default function HomeScreen() {
               <Text style={styles.recentLabel}>Atividade recente</Text>
               <Text style={styles.recentDate}>Abril 15, 2026</Text>
             </View>
+          </View>
+
+          {/* Grade com atalhos rápidos */}
+          <View style={styles.grid}>
+            <SmallCard
+              title="Locais para treinar"
+              subtitle="Encontre locais próximos"
+              icon={<Ionicons name="map-outline" size={54} color={colors.primary} />}
+            />
+
+            <SmallCard
+              title="Estabelecer metas"
+              subtitle="Defina objetivos de treino"
+              icon={<Ionicons name="bullseye-outline" size={54} color={colors.primary} />}
+            />
+
+            <SmallCard
+              title="Seu progresso"
+              subtitle="Veja sua evolução"
+              icon={<Ionicons name="bar-chart-outline" size={54} color={colors.primary} />}
+            />
+
+            <SmallCard
+              title="Treinos favoritos"
+              subtitle="Acesse rapidamente"
+              icon={<Ionicons name="heart-outline" size={54} color={colors.primary} />}
+            />
           </View>
         </ScrollView>
       </View>
@@ -232,4 +290,53 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: colors.text,
   },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  smallCard: {
+    width: "47%",
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    overflow: "hidden",
+    minHeight: 210,
+  },
+  smallBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderTopLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  smallBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  smallIconArea: {
+    height: 95,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ECECF7",
+  },
+  smallCardContent: {
+    padding: 10,
+  },
+  smallCardTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 4,
+  },
+  smallCardSubtitle: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
 });
+```
