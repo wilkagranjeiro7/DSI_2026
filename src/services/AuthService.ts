@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"; // IMPORTANTE: novas funções
+import { doc, serverTimestamp, setDoc } from "firebase/firestore"; // IMPORTANTE: novas funções
 import { auth, db } from "../utils/firebaseConfig"; // IMPORTANTE: importando o 'db'
 
 class AuthService {
@@ -27,6 +27,9 @@ class AuthService {
       
       return user;
     } catch (error: any) {
+      // ADICIONE ESTAS LINHAS AQUI PARA DEBUGAR:
+      console.error("DEBUG - ERRO REAL DO FIREBASE:", error);
+      
       let message = "Ocorreu um erro inesperado.";
       
       switch (error.code) {
