@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
+import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -13,9 +15,9 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Alert,
 } from "react-native";
 import AuthService from "../src/services/AuthService";
+import { auth, db } from "../src/utils/firebaseConfig";
 
 const SignUpScreen = () => {
   const router = useRouter();
@@ -34,8 +36,21 @@ const SignUpScreen = () => {
     setErrorMsg('');
     setLoading(true);
     try {
-    // Tenta registrar
+    // 1. Tenta registrar (Auth)
       await AuthService.register(nome, email, senha);
+    
+    // 2. Se chegou aqui, o usuário foi criado. 
+    // Pegamos o UID que o Firebase acabou de gerar:
+      const user = auth.currentUser;
+    
+    if (user) {
+        // 3. Salvamos o nome no Firestore na coleção 'users'
+        await setDoc(doc(db, "users", user.uid), {
+          name: nome, // Salvando o nome que ele digitou
+          email: email,
+          createdAt: new Date().toISOString()
+      });
+    }
     
     // SUCESSO! 
     // Mostra o alerta
@@ -45,8 +60,11 @@ const SignUpScreen = () => {
       router.replace('/login'); 
     
     } catch (err: any) {
-    // Se der erro, o catch captura e mostra aqui
-      setErrorMsg(err.message);
+      // Log completo no terminal para ver o que realmente está acontecendo
+      console.error("ERRO COMPLETO NO CADASTRO:", err);
+      
+      // Tenta mostrar uma mensagem mais amigável, mas mantém o console.error
+      setErrorMsg("Erro: " + (err.message || "Falha ao conectar. Verifique o console."));
     } finally {
       setLoading(false);
     }

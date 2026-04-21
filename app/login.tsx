@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -12,7 +13,7 @@ import {
 
 // --- IMPORTAÇÕES DO FIREBASE ---
 import { addDoc, collection } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db } from "../src/utils/firebaseConfig";
 
 // Interface para o TypeScript
 interface TentativaLogin {
@@ -91,9 +92,10 @@ export default function LoginScreen() {
 
     try {
       await salvarNoFirebase(novaTentativa);
-      Alert.alert("Sucesso", "Login registrado no Firebase!");
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
       setEmail("");
       setSenha("");
+      router.replace("/home")
     } catch (error) {
       Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
     }
