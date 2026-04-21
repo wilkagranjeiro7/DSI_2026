@@ -1,5 +1,6 @@
-# commit 1
-**Mensagem sugerida:** `adiciona componente SmallCard e grade de atalhos`
+# commit 2
+**Mensagem sugerida:** `adiciona barra inferior e finaliza a home`
+
 
 ```tsx
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 // Paleta de cores usada na tela inicial
@@ -134,28 +135,83 @@ export default function HomeScreen() {
             <SmallCard
               title="Locais para treinar"
               subtitle="Encontre locais próximos"
-              icon={<Ionicons name="map-outline" size={54} color={colors.primary} />}
+              icon={
+                <Ionicons
+                  name="map-outline"
+                  size={54}
+                  color={colors.primary}
+                />
+              }
             />
 
             <SmallCard
               title="Estabelecer metas"
               subtitle="Defina objetivos de treino"
-              icon={<Ionicons name="bullseye-outline" size={54} color={colors.primary} />}
+              icon={
+                <Ionicons
+                  name="bullseye-outline"
+                  size={54}
+                  color={colors.primary}
+                />
+              }
             />
 
             <SmallCard
               title="Seu progresso"
               subtitle="Veja sua evolução"
-              icon={<Ionicons name="bar-chart-outline" size={54} color={colors.primary} />}
+              icon={
+                <Ionicons
+                  name="bar-chart-outline"
+                  size={54}
+                  color={colors.primary}
+                />
+              }
             />
 
             <SmallCard
               title="Treinos favoritos"
               subtitle="Acesse rapidamente"
-              icon={<Ionicons name="heart-outline" size={54} color={colors.primary} />}
+              icon={
+                <Ionicons
+                  name="heart-outline"
+                  size={54}
+                  color={colors.primary}
+                />
+              }
             />
           </View>
         </ScrollView>
+
+        {/* Barra de navegação inferior */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity style={styles.tabItem}>
+            <Ionicons name="home-outline" size={22} color={colors.primary} />
+            <Text style={styles.tabText}>Início</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem}>
+            <MaterialCommunityIcons
+              name="arm-flex-outline"
+              size={22}
+              color={colors.primary}
+            />
+            <Text style={styles.tabText}>Treinos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem}>
+            <Ionicons name="list-outline" size={22} color={colors.primary} />
+            <Text style={styles.tabText}>Metas</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem}>
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={colors.primary}
+            />
+            <Text style={styles.tabText}>Perfil</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -337,6 +393,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+  },
+  tabBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    backgroundColor: colors.tabBg,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 6,
+  },
+  tabItem: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabText: {
+    fontSize: 12,
+    color: colors.text,
+    marginTop: 2,
   },
 });
 ```
