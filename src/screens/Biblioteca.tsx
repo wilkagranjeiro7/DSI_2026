@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router"; // Importado para permitir a volta
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
     FlatList,
@@ -44,19 +44,33 @@ const EXERCICIOS = [
     imagem:
       "https://images.unsplash.com/photo-1574673139082-c3b8d6659c2b?q=80&w=300&auto=format&fit=crop",
   },
+  {
+    id: "5",
+    nome: "Desenvolvimento",
+    musculo: "Ombros e Tríceps",
+    imagem:
+      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=300&auto=format&fit=crop",
+  },
+  {
+    id: "6",
+    nome: "Leg Press 45°",
+    musculo: "Quadríceps e Glúteos",
+    imagem:
+      "https://images.unsplash.com/photo-1534367958040-27e0bd3d2a97?q=80&w=300&auto=format&fit=crop",
+  },
 ];
 
 export default function BibliotecaScreen() {
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todos");
-  const router = useRouter(); // Inicializa o navegador
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Cabeçalho com Botão de Voltar */}
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
-            onPress={() => router.back()} // Função que volta para a Home
+            onPress={() => router.back()}
             style={styles.backButton}
           >
             <Ionicons name="arrow-back" size={24} color="#111827" />
