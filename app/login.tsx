@@ -95,7 +95,7 @@ export default function LoginScreen() {
       Alert.alert("Sucesso", "Login realizado com sucesso!");
       setEmail("");
       setSenha("");
-      router.replace("/home")
+      router.replace("/home");
     } catch (error) {
       Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
     }
