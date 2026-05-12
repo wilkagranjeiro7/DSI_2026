@@ -20,51 +20,81 @@ const EXERCICIOS = [
     id: "1",
     nome: "Supino Reto",
     musculo: "Peito e Tríceps",
+    categoria: "Peito",
     info: "Barra, Halteres",
-    imagem:
-      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=300&auto=format&fit=crop",
+    imagem: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=300&auto=format&fit=crop",
   },
   {
     id: "2",
     nome: "Agachamento Livre",
     musculo: "Quadríceps e Glúteos",
+    categoria: "Pernas",
     info: "Barra",
-    imagem:
-      "https://images.unsplash.com/photo-1574673139082-c3b8d6659c2b?q=80&w=300&auto=format&fit=crop",
+    imagem: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=300&auto=format&fit=crop",
   },
   {
     id: "3",
     nome: "Flexão de Braço",
     musculo: "Peito e Tríceps",
+    categoria: "Peito",
     info: "Sem equipamento",
-    imagem:
-      "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?q=80&w=300&auto=format&fit=crop",
+    imagem: "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?q=80&w=300&auto=format&fit=crop",
   },
   {
     id: "4",
     nome: "Remada Curvada",
     musculo: "Costas e Bíceps",
+    categoria: "Costas",
     info: "Barra",
-    imagem:
-      "https://images.unsplash.com/photo-1603287611837-f2146f5de308?q=80&w=300&auto=format&fit=crop",
+    imagem: "https://images.unsplash.com/photo-1603287611837-f2146f5de308?q=80&w=300&auto=format&fit=crop",
   },
   {
     id: "5",
     nome: "Tríceps Testa",
     musculo: "Tríceps",
+    categoria: "Braços",
     info: "Halteres",
-    imagem:
-      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=300&auto=format&fit=crop",
+    imagem: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=300&auto=format&fit=crop",
   },
+  {
+    id: "6",
+    nome: "Rosca Direta",
+    musculo: "Bíceps",
+    categoria: "Braços",
+    info: "Barra W ou Halteres",
+    imagem: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=300&auto=format&fit=crop",
+  },
+  {
+    id: "7",
+    nome: "Corrida na Esteira",
+    musculo: "Cardiovascular",
+    categoria: "Cardio",
+    info: "Esteira",
+    imagem: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?q=80&w=300&auto=format&fit=crop",
+  },
+  {
+    id: "8",
+    nome: "Puxada Frontal",
+    musculo: "Dorsais",
+    categoria: "Costas",
+    info: "Polia Alta",
+    imagem: "https://images.unsplash.com/photo-1624353322073-52488f7b3ad4?q=80&w=300&auto=format&fit=crop",
+  }
 ];
 
 export default function BibliotecaScreen() {
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todos");
   const router = useRouter();
 
+  // --- LOGICA DE FILTRO ADICIONADA AQUI ---
+  const exerciciosFiltrados = categoriaAtiva === "Todos" 
+    ? EXERCICIOS 
+    : EXERCICIOS.filter(ex => ex.categoria === categoriaAtiva);
+  // ----------------------------------------
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Cabeçalho Laranja - Ícone de coração removido */}
+      {/* Cabeçalho */}
       <View style={styles.headerLaranja}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#FFF" />
@@ -124,7 +154,7 @@ export default function BibliotecaScreen() {
 
         {/* Lista de Exercícios */}
         <FlatList
-          data={EXERCICIOS}
+          data={exerciciosFiltrados} // <-- MUDANÇA: Agora usa a lista filtrada
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
@@ -147,17 +177,14 @@ export default function BibliotecaScreen() {
         />
       </View>
 
-      {/* Botão de Adicionar Exercício Fixo */}
+      {/* Botão de Adicionar */}
       <TouchableOpacity style={styles.addBtn}>
         <Text style={styles.addBtnText}>+ Adicionar Exercício</Text>
       </TouchableOpacity>
 
-      {/* Barra de Navegação Inferior - Conexão com Início configurada */}
+      {/* Navegação Inferior */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/home")}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/home")}>
           <Ionicons name="home-outline" size={24} color="#999" />
           <Text style={styles.navText}>Início</Text>
         </TouchableOpacity>
@@ -181,6 +208,7 @@ export default function BibliotecaScreen() {
   );
 }
 
+// Os estilos (styles) permanecem exatamente os mesmos que você já tem...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
   headerLaranja: {
