@@ -4,15 +4,18 @@ import { StatusBar } from "expo-status-bar";
 export default function RootLayout() {
   return (
     <>
-      {/* Deixa os ícones da bateria/hora escuros (já que o fundo é branco) */}
       <StatusBar style="dark" />
 
       <Stack screenOptions={{ headerShown: false }}>
-        {/* Adicionamos essas linhas para "registrar" as telas oficialmente */}
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="signup" />
         <Stack.Screen name="home" />
+        <Stack.Screen name="meus-treinos" />
+        <Stack.Screen name="meus-exercicios" />
+        <Stack.Screen name="criar-treino" />
+        <Stack.Screen name="detalhes" />
+        <Stack.Screen name="biblioteca" />
       </Stack>
     </>
   );

@@ -2,19 +2,19 @@ import { useRouter } from "expo-router";
 import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import AuthService from "../src/services/AuthService";
 import { auth, db } from "../src/utils/firebaseConfig";
@@ -33,42 +33,43 @@ const SignUpScreen = () => {
       setErrorMsg("Por favor, preencha todos os campos.");
       return;
     }
-    setErrorMsg('');
+    setErrorMsg("");
     setLoading(true);
     try {
-    // 1. Tenta registrar (Auth)
+      // 1. Tenta registrar (Auth)
       await AuthService.register(nome, email, senha);
-    
-    // 2. Se chegou aqui, o usuário foi criado. 
-    // Pegamos o UID que o Firebase acabou de gerar:
+
+      // 2. Se chegou aqui, o usuário foi criado.
+      // Pegamos o UID que o Firebase acabou de gerar:
       const user = auth.currentUser;
-    
-    if (user) {
+
+      if (user) {
         // 3. Salvamos o nome no Firestore na coleção 'users'
         await setDoc(doc(db, "users", user.uid), {
           name: nome, // Salvando o nome que ele digitou
           email: email,
-          createdAt: new Date().toISOString()
-      });
-    }
-    
-    // SUCESSO! 
-    // Mostra o alerta
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      // SUCESSO!
+      // Mostra o alerta
       Alert.alert("Sucesso", "Conta criada com sucesso! Seja bem-vindo(a).");
-    
-    // Navega para a tela principal
-      router.replace('/login'); 
-    
+
+      // Navega para a tela principal
+      router.replace("/login");
     } catch (err: any) {
       // Log completo no terminal para ver o que realmente está acontecendo
       console.error("ERRO COMPLETO NO CADASTRO:", err);
-      
+
       // Tenta mostrar uma mensagem mais amigável, mas mantém o console.error
-      setErrorMsg("Erro: " + (err.message || "Falha ao conectar. Verifique o console."));
+      setErrorMsg(
+        "Erro: " + (err.message || "Falha ao conectar. Verifique o console."),
+      );
     } finally {
       setLoading(false);
     }
-};
+  };
 
   return (
     // 1. O KeyboardAvoidingView garante que os inputs subam com o teclado
