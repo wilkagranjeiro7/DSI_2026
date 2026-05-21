@@ -1,17 +1,17 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore"; // Import para buscar dados do Firestore
+import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { auth, db } from "../src/utils/firebaseConfig"; // Seus arquivos de configuração
+import { auth, db } from "../src/utils/firebaseConfig";
 
 // Paleta de cores oficial do FitMatch
 const colors = {
@@ -27,6 +27,7 @@ const colors = {
 };
 
 // Componente reutilizável para os cards menores
+// Aqui já usamos TypeScript para definir as propriedades (props) que o card recebe
 function SmallCard({
   title,
   subtitle,
@@ -60,8 +61,8 @@ function SmallCard({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [userName, setUserName] = useState(""); // Estado para armazenar o nome dinâmico
-  const [loadingName, setLoadingName] = useState(true);
+  const [userName, setUserName] = useState<string>(""); // Estado tipado como string
+  const [loadingName, setLoadingName] = useState<boolean>(true); // Estado tipado como boolean
 
   // Busca o nome de quem se cadastrou no Firestore
   useEffect(() => {
@@ -103,12 +104,19 @@ export default function HomeScreen() {
 
           <View style={styles.headerRight}>
             <Feather name="help-circle" size={20} color={colors.white} />
-            <Feather
-              name="log-out"
-              size={20}
-              color={colors.white}
-              style={{ marginLeft: 14 }}
-            />
+            <TouchableOpacity
+              onPress={() => {
+                auth.signOut();
+                router.replace("/login");
+              }}
+            >
+              <Feather
+                name="log-out"
+                size={20}
+                color={colors.white}
+                style={{ marginLeft: 14 }}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -116,9 +124,13 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Área de saudação dinâmica - O nome agora vem do banco de dados */}
+          {/* Área de saudação dinâmica - O avatar leva para o perfil */}
           <View style={styles.greetingRow}>
-            <View style={styles.avatar} />
+            <TouchableOpacity
+              style={styles.avatar}
+              onPress={() => router.push("/perfil")}
+              activeOpacity={0.8}
+            />
             <View>
               {loadingName ? (
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -170,7 +182,7 @@ export default function HomeScreen() {
             <SmallCard
               title="Biblioteca de Exercícios"
               subtitle="Veja todos os exercícios"
-              onPress={() => router.push("/biblioteca")} // Liga com a sua tela de exercícios
+              onPress={() => router.push("/meus-exercicios")}
               icon={
                 <Ionicons
                   name="library-outline"
@@ -180,10 +192,11 @@ export default function HomeScreen() {
               }
             />
 
+            {/* CORREÇÃO AQUI: Bloco do card de metas limpo e com Feather */}
             <SmallCard
               title="Estabelecer metas"
               subtitle="Defina objetivos de treino"
-              icon={<Ionicons name="target" size={54} color={colors.primary} />}
+              icon={<Feather name="target" size={54} color={colors.primary} />}
             />
 
             <SmallCard
@@ -224,9 +237,10 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
+          {/* ✅ CORRIGIDO: Agora aponta para /meus-treinos */}
           <TouchableOpacity
             style={styles.tabItem}
-            onPress={() => router.push("/biblioteca")}
+            onPress={() => router.push("/meus-treinos")}
           >
             <MaterialCommunityIcons
               name="arm-flex-outline"
@@ -241,8 +255,20 @@ export default function HomeScreen() {
             <Text style={styles.tabText}>Metas</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="settings-outline" size={22} color={colors.text} />
+          {/* NOVO ÍCONE DE MAPA ADICIONADO AQUI */}
+          <TouchableOpacity
+            style={styles.tabItem}
+            // onPress={() => router.push("/mapa")} // Descomente e ajuste a rota quando tiver a tela pronta
+          >
+            <Ionicons name="map-outline" size={22} color={colors.text} />
+            <Text style={styles.tabText}>Mapa</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tabItem}
+            onPress={() => router.push("/perfil")}
+          >
+            <Ionicons name="person-outline" size={22} color={colors.text} />
             <Text style={styles.tabText}>Perfil</Text>
           </TouchableOpacity>
         </View>
