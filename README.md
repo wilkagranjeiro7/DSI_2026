@@ -25,15 +25,22 @@ Na saída do terminal, você terá opções de como abrir o app:
 - [Expo Go](https://expo.dev/go) - um ambiente sandbox restrito para testes de desenvolvimento do app com o Expo
 
 
-## Configurando as env do firebase
+## Configurando as env do firebase e supabase
 Para utilizar o firebase localmente basta adicionar no .env as credenciais necessárias.
 ```
+# CONFIGURAÇÕES DO FIREBASE
 EXPO_PUBLIC_FIREBASE_API_KEY=
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
+
+# CONFIGURAÇÕES DO SUPABASE
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+
 ```
 
 1. Copie e cole o arquivo .env-example;
