@@ -3,13 +3,13 @@ import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { auth, db } from "../src/utils/firebaseConfig";
 
@@ -227,47 +227,28 @@ export default function HomeScreen() {
 
         {/* Barra de navegação inferior integrada com espaçamento de segurança */}
         <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/home")}
-          >
+          <TouchableOpacity style={styles.tabItem}>
             <Ionicons name="home-outline" size={22} color={colors.primary} />
-            <Text style={[styles.tabText, { color: colors.primary }]}>
-              Início
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/meus-treinos")}
-          >
-            <MaterialCommunityIcons
-              name="arm-flex-outline"
-              size={22}
-              color={colors.text}
-            />
-            <Text style={styles.tabText}>Treinos</Text>
+            <Text style={styles.tabText}>Início</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="list-outline" size={22} color={colors.text} />
+            <MaterialCommunityIcons name="arm-flex-outline" size={22} color={colors.primary} />
+            <Text style={styles.tabText}>Treinos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/metas")}>
+            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
             <Text style={styles.tabText}>Metas</Text>
           </TouchableOpacity>
 
-          {/* ✅ ROTA DO MAPA ATIVADA E APONTANDO PARA /map */}
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/map")} 
-          >
-            <Ionicons name="map-outline" size={22} color={colors.text} />
+          <TouchableOpacity style={styles.tabItem}>
+            <Ionicons name="navigate-outline" size={22} color={colors.primary} />
             <Text style={styles.tabText}>Mapa</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/perfil")}
-          >
-            <Ionicons name="person-outline" size={22} color={colors.text} />
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/perfil")}>
+            <Ionicons name="person-outline" size={22} color={colors.primary} />
             <Text style={styles.tabText}>Perfil</Text>
           </TouchableOpacity>
         </View>

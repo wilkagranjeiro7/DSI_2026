@@ -17,6 +17,9 @@ export default function RootLayout() {
         <Stack.Screen name="criar-treino" />
         <Stack.Screen name="detalhes" />
         <Stack.Screen name="biblioteca" />
+        <Stack.Screen name="metas" />
+        <Stack.Screen name="meta-form" />
+        <Stack.Screen name="perfil" />
       </Stack>
     </>
   );

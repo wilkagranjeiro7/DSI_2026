@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { MetaFormulario, TipoRelacionamentoFormulario } from "../../src/models/Meta";
+import { MetaFormulario, TipoRelacionamentoFormulario } from "../../models/Meta";
 
 interface MetaFormProps {
   form: MetaFormulario;

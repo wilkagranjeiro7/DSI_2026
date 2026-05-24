@@ -76,7 +76,7 @@ export default function MetaFormScreen() {
   }, [id]);
 
   function alterarCampo(campo: keyof MetaFormulario, valor: string) {
-    setForm((estadoAtual) => ({
+    setForm((estadoAtual: MetaFormulario) => ({
       ...estadoAtual,
       [campo]: valor,
     }));

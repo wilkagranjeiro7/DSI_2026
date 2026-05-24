@@ -1,15 +1,15 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    serverTimestamp,
-    updateDoc,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 
-import Meta, { MetaDados } from "../src/models/Meta";
+import Meta, { MetaDados } from "../models/Meta";
 import { db } from "../utils/firebaseConfig";
 
 class MetaRepository {

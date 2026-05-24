@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Meta from "../../src/models/Meta";
+import Meta from "../../models/Meta";
 
 interface MetaCardProps {
   meta: Meta;
