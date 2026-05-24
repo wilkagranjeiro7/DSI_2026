@@ -225,7 +225,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Barra de navegação inferior integrada */}
+        {/* Barra de navegação inferior integrada com espaçamento de segurança */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tabItem}
@@ -237,7 +237,6 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* ✅ CORRIGIDO: Agora aponta para /meus-treinos */}
           <TouchableOpacity
             style={styles.tabItem}
             onPress={() => router.push("/meus-treinos")}
@@ -255,10 +254,10 @@ export default function HomeScreen() {
             <Text style={styles.tabText}>Metas</Text>
           </TouchableOpacity>
 
-          {/* NOVO ÍCONE DE MAPA ADICIONADO AQUI */}
+          {/* ✅ ROTA DO MAPA ATIVADA E APONTANDO PARA /map */}
           <TouchableOpacity
             style={styles.tabItem}
-            // onPress={() => router.push("/mapa")} // Descomente e ajuste a rota quando tiver a tela pronta
+            onPress={() => router.push("/map")} 
           >
             <Ionicons name="map-outline" size={22} color={colors.text} />
             <Text style={styles.tabText}>Mapa</Text>
@@ -296,7 +295,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 12,
   },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  scrollContent: { padding: 16, paddingBottom: 110 }, // Aumentado um pouco para o conteúdo não sumir atrás da barra maior
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -397,19 +396,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallCardSubtitle: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  
+  // 🛠️ SEÇÃO CORRIGIDA: Ajuste da barra inferior para descolar dos botões do celular
   tabBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 70,
+    height: 85, // Aumentado de 70 para 85 para dar espaço de respiro
     backgroundColor: colors.tabBg,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingBottom: 6,
+    paddingBottom: 18, // Empurra todo o bloco de ícones e textos para cima
   },
   tabItem: { alignItems: "center", justifyContent: "center" },
   tabText: { fontSize: 12, color: colors.text, marginTop: 2 },
