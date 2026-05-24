@@ -1,22 +1,24 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system/legacy"; // Biblioteca para ler arquivos no Expo de forma binária
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { auth, db } from "../src/utils/firebaseConfig";
+import { supabase } from "../src/utils/supabaseConfig"; // Configuração do Supabase
 
 const colors = {
   primary: "#F28C1B",
@@ -35,6 +37,7 @@ export default function PerfilScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [image, setImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false); // Feedback visual do upload da foto
 
   // Estados para o Controle do Registro de Sono
   const [modalSonoVisivel, setModalSonoVisivel] = useState(false);
@@ -49,19 +52,34 @@ export default function PerfilScreen() {
   const [treinouHoje, setTreinouHoje] = useState(false);
   const [caloriasDoTreino, setCaloriasDoTreino] = useState(0);
 
-  // Busca dados do Firebase de forma dinâmica
+  // Busca dados do Firebase de forma dinâmica (Pega o nome do usuário logado)
   const fetchUserData = async () => {
     try {
       const user = auth.currentUser;
       if (user) {
+        // 1. Tenta pegar o nome direto do perfil de Autenticação do Firebase primeiro
+        let nomeUsuario = user.displayName || "Usuário";
+
+        // 2. Busca os dados complementares no Firestore
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const dadosBanco = userDoc.data();
+          
+          // Se houver um nome salvo no Firestore, ele substitui o da autenticação
+          if (dadosBanco.name) {
+            nomeUsuario = dadosBanco.name;
+          }
+
           setUserData({
-            name: dadosBanco.name || "João Silva",
+            name: nomeUsuario,
             memberSince: dadosBanco.memberSince || "jan/2024",
             streak: dadosBanco.streak || "12 dias",
           });
+
+          // Se o usuário já tiver uma foto salva no Firebase/Supabase, carrega ela aqui
+          if (dadosBanco.photoUrl) {
+            setImage(dadosBanco.photoUrl);
+          }
 
           if (dadosBanco.horasSono) {
             setHorasSono(dadosBanco.horasSono.toString());
@@ -79,6 +97,10 @@ export default function PerfilScreen() {
             setTreinouHoje(false);
             setCaloriasDoTreino(0);
           }
+        } else {
+          // Caso o documento no Firestore ainda não exista para esse usuário novo, 
+          // exibe pelo menos o nome vindo da autenticação (ex: Login Social / Google)
+          setUserData(prev => ({ ...prev, name: nomeUsuario }));
         }
       }
     } catch (error) {
@@ -110,7 +132,7 @@ export default function PerfilScreen() {
 
       alert("Horas de Sono registrada");
       setModalSonoVisivel(false);
-      fetchUserData(); // Recarrega a tela para atualizar o Biorritmo na hora
+      fetchUserData(); 
     } catch (error: any) {
       console.error("Erro ao salvar sono:", error);
       alert("Erro ao salvar: " + error.message);
@@ -119,8 +141,8 @@ export default function PerfilScreen() {
     }
   };
 
-  // Lógica da foto de perfil
-  const escolherImagem = async () => {
+  // Lógica de upload e salvamento híbrido (Supabase Storage + Firestore)
+  const escolherEEnviarImagem = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       alert("Precisamos de permissão para acessar suas fotos.");
@@ -131,11 +153,67 @@ export default function PerfilScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.5, // Reduz a qualidade para economizar internet e subir mais rápido
     });
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Usuário não autenticado.");
+        return;
+      }
+
+      const localUri = result.assets[0].uri;
+
+      // 1. Converter a imagem local do celular para binário usando o expo-file-system
+      const base64 = await FileSystem.readAsStringAsync(localUri, {
+        encoding: 'base64',
+      });
+      
+      // Decodifica os bytes para que o Supabase mobile processe o upload corretamente
+      const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+
+      // Gera um nome único para o arquivo baseado no UID do usuário
+      const fileExtension = localUri.split(".").pop();
+      const fileName = `${user.uid}/avatar.${fileExtension}`;
+
+      // 2. Faz o upload para o bucket "avatars" (Usamos upsert: true para atualizar caso já exista uma foto)
+      const { data, error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, buffer, {
+          contentType: `image/${fileExtension}`,
+          upsert: true, 
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      // 3. Pega a URL pública gerada no Supabase Storage
+      const { data: publicUrlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // 4. Salva de forma definitiva essa URL de foto dentro do documento do Firestore no Firebase
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, { photoUrl: publicUrl }, { merge: true });
+
+      // Atualiza a tela localmente na mesma hora
+      setImage(publicUrl);
+      alert("Foto de perfil atualizada com sucesso!");
+
+    } catch (error: any) {
+      console.error("Erro no upload da imagem:", error);
+      alert("Erro ao salvar imagem: " + error.message);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -149,7 +227,7 @@ export default function PerfilScreen() {
 
   const handleMenuPress = (label: string) => {
     if (label === "Treinos") {
-      router.push("/meus-treinos"); // Corrigido para abrir a tela de fichas de treinos!
+      router.push("/meus-treinos");
     } else if (label === "Sono") {
       setModalSonoVisivel(true);
     } else if (label === "Biorritmo") {
@@ -159,7 +237,6 @@ export default function PerfilScreen() {
     }
   };
 
-  // Calcula a barra de energia com base nas horas de sono
   const getPorcentagemEnergia = () => {
     const horas = parseFloat(horasSono);
     if (isNaN(horas)) return 50;
@@ -206,9 +283,14 @@ export default function PerfilScreen() {
               )}
               <TouchableOpacity
                 style={styles.cameraBadge}
-                onPress={escolherImagem}
+                onPress={escolherEEnviarImagem}
+                disabled={uploadingImage}
               >
-                <Ionicons name="camera" size={16} color={colors.primary} />
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="camera" size={16} color={colors.primary} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -385,7 +467,6 @@ export default function PerfilScreen() {
               Nível de energia atual baseado nos seus dados:
             </Text>
 
-            {/* Barra de Energia Física baseada no Sono */}
             <View style={styles.biorritmoBlock}>
               <Text style={styles.biorritmoLabel}>
                 ⚡ Energia Física ({getPorcentagemEnergia()}%)
@@ -400,7 +481,6 @@ export default function PerfilScreen() {
               </View>
             </View>
 
-            {/* Barra de Recuperação Muscular MUDANDO SOZINHA se treinou hoje */}
             <View style={styles.biorritmoBlock}>
               <Text style={styles.biorritmoLabel}>
                 💪 Recuperação Muscular ({treinouHoje ? "40%" : "100%"})
@@ -454,7 +534,6 @@ export default function PerfilScreen() {
               Resumo de movimentação física geral de hoje:
             </Text>
 
-            {/* Card de Treinos Concluídos Puxando Dados */}
             <View
               style={[
                 styles.atividadeItemCard,
@@ -626,8 +705,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   btnLogOutText: { color: "#EA580C", fontWeight: "600", fontSize: 15 },
-
-  // Estilos Gerais dos Modais
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -670,8 +747,6 @@ const styles = StyleSheet.create({
   btnSalvar: { marginLeft: 8, backgroundColor: colors.primary },
   btnTextCancelar: { color: colors.textSoft, fontWeight: "600" },
   btnTextSalvar: { color: colors.white, fontWeight: "600" },
-
-  // Estilos do Modal de Sono
   inputSono: {
     width: "100%",
     height: 48,
@@ -683,8 +758,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-
-  // Estilos Exclusivos do Modal do Biorritmo
   biorritmoBlock: { width: "100%", marginBottom: 14 },
   biorritmoLabel: {
     fontSize: 14,
@@ -708,8 +781,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     paddingHorizontal: 4,
   },
-
-  // Estilos Exclusivos do Modal de Atividades (Vírgula adicionada na linha abaixo!)
   atividadeItemCard: {
     flexDirection: "row",
     width: "100%",
