@@ -67,7 +67,7 @@ export default function CriarExerciciosScreen() {
         });
         Alert.alert("Sucesso!", "Exercício atualizado com sucesso.");
       }
-      // SE FOR UM NOVO (OU SE VOCÊ ESTIVER EDITANDO UM PADRÃO DA LISTA, ELE VIRA UM NOVO SALVO)
+     
       else {
         await addDoc(collection(db, "exercicios"), {
           nome,
