@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy"; // Biblioteca para ler ar
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth"; // Escutador de sessão dinâmico
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
@@ -52,72 +53,80 @@ export default function PerfilScreen() {
   const [treinouHoje, setTreinouHoje] = useState(false);
   const [caloriasDoTreino, setCaloriasDoTreino] = useState(0);
 
-  // Busca dados do Firebase de forma dinâmica (Pega o nome do usuário logado)
-  const fetchUserData = async () => {
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        // 1. Tenta pegar o nome direto do perfil de Autenticação do Firebase primeiro
-        let nomeUsuario = user.displayName || "Usuário";
+  // 📝 ESTADOS PARA O TOAST CARD (AVISO DISCRETO)
+  const [toastVisivel, setToastVisivel] = useState(false);
+  const [toastMensagem, setToastMensagem] = useState("");
+  const [toastIcone, setToastIcone] = useState<"checkmark-circle" | "alert-circle">("checkmark-circle");
 
-        // 2. Busca os dados complementares no Firestore
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const dadosBanco = userDoc.data();
-          
-          // Se houver um nome salvo no Firestore, ele substitui o da autenticação
-          if (dadosBanco.name) {
-            nomeUsuario = dadosBanco.name;
-          }
-
-          setUserData({
-            name: nomeUsuario,
-            memberSince: dadosBanco.memberSince || "jan/2024",
-            streak: dadosBanco.streak || "12 dias",
-          });
-
-          // Se o usuário já tiver uma foto salva no Firebase/Supabase, carrega ela aqui
-          if (dadosBanco.photoUrl) {
-            setImage(dadosBanco.photoUrl);
-          }
-
-          if (dadosBanco.horasSono) {
-            setHorasSono(dadosBanco.horasSono.toString());
-          }
-
-          // Verifica de forma automática se há treino registrado para hoje
-          const hoje = new Date().toISOString().split("T")[0];
-          if (
-            dadosBanco.ultimoTreino === hoje ||
-            dadosBanco.treinouHoje === true
-          ) {
-            setTreinouHoje(true);
-            setCaloriasDoTreino(dadosBanco.caloriasTreino || 300);
-          } else {
-            setTreinouHoje(false);
-            setCaloriasDoTreino(0);
-          }
-        } else {
-          // Caso o documento no Firestore ainda não exista para esse usuário novo, 
-          // exibe pelo menos o nome vindo da autenticação (ex: Login Social / Google)
-          setUserData(prev => ({ ...prev, name: nomeUsuario }));
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-    } finally {
-      setLoading(false);
-    }
+  // Função auxiliar para disparar o aviso discreto que some sozinho após 3 segundos
+  const mostrarAvisoDiscreto = (mensagem: string, tipo: "sucesso" | "erro" = "sucesso") => {
+    setToastMensagem(mensagem);
+    setToastIcone(tipo === "sucesso" ? "checkmark-circle" : "alert-circle");
+    setToastVisivel(true);
+    
+    setTimeout(() => {
+      setToastVisivel(false);
+    }, 3000);
   };
 
+  // Busca dados do Firebase de forma dinâmica com o listener ativo
   useEffect(() => {
-    fetchUserData();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          let nomeUsuario = user.displayName || "Usuário";
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const dadosBanco = userDoc.data();
+            
+            if (dadosBanco.name) {
+              nomeUsuario = dadosBanco.name;
+            }
+
+            setUserData({
+              name: nomeUsuario,
+              memberSince: dadosBanco.memberSince || "jan/2024",
+              streak: dadosBanco.streak || "12 dias",
+            });
+
+            // Aplica cache buster ao carregar a foto inicial também
+            if (dadosBanco.photoUrl) {
+              setImage(`${dadosBanco.photoUrl}?t=${new Date().getTime()}`);
+            }
+
+            if (dadosBanco.horasSono) {
+              setHorasSono(dadosBanco.horasSono.toString());
+            }
+
+            const hoje = new Date().toISOString().split("T")[0];
+            if (dadosBanco.ultimoTreino === hoje || dadosBanco.treinouHoje === true) {
+              setTreinouHoje(true);
+              setCaloriasDoTreino(dadosBanco.caloriasTreino || 300);
+            } else {
+              setTreinouHoje(false);
+              setCaloriasDoTreino(0);
+            }
+          } else {
+            setUserData(prev => ({ ...prev, name: nomeUsuario }));
+          }
+        } catch (error) {
+          console.error("Erro ao buscar dados:", error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Salva o sono no Firebase
   const handleSalvarSono = async () => {
     if (!horasSono.trim()) {
-      alert("Por favor, digite a quantidade de horas dormidas.");
+      mostrarAvisoDiscreto("Por favor, digite as horas dormidas.", "erro");
       return;
     }
 
@@ -128,14 +137,15 @@ export default function PerfilScreen() {
       if (user) {
         const userRef = doc(db, "users", user.uid);
         await setDoc(userRef, { horasSono: horasSono }, { merge: true });
+        
+        mostrarAvisoDiscreto("Horas de sono registradas com sucesso! 🛌");
+        setModalSonoVisivel(false);
+      } else {
+        mostrarAvisoDiscreto("Sessão inválida. Faça login novamente.", "erro");
       }
-
-      alert("Horas de Sono registrada");
-      setModalSonoVisivel(false);
-      fetchUserData(); 
     } catch (error: any) {
       console.error("Erro ao salvar sono:", error);
-      alert("Erro ao salvar: " + error.message);
+      mostrarAvisoDiscreto("Erro ao salvar dados de sono.", "erro");
     } finally {
       setSalvandoSono(false);
     }
@@ -145,15 +155,15 @@ export default function PerfilScreen() {
   const escolherEEnviarImagem = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      alert("Precisamos de permissão para acessar suas fotos.");
+      mostrarAvisoDiscreto("Precisamos de permissão para acessar suas fotos.", "erro");
       return;
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5, // Reduz a qualidade para economizar internet e subir mais rápido
+      quality: 0.5, 
     });
 
     if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -162,27 +172,33 @@ export default function PerfilScreen() {
 
     try {
       setUploadingImage(true);
-      const user = auth.currentUser;
+      
+      let user = auth.currentUser;
+
+      // Se houver atraso na reidratação do estado devido à abertura da galeria, aguarda 800ms
       if (!user) {
-        alert("Usuário não autenticado.");
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        user = auth.currentUser;
+      }
+
+      if (!user) {
+        mostrarAvisoDiscreto("Sessão instável. Saia e entre novamente no app.", "erro");
         return;
       }
 
       const localUri = result.assets[0].uri;
 
-      // 1. Converter a imagem local do celular para binário usando o expo-file-system
+      // 1. Converter a imagem local do celular para binário usando a API legada do expo-file-system
       const base64 = await FileSystem.readAsStringAsync(localUri, {
         encoding: 'base64',
       });
       
-      // Decodifica os bytes para que o Supabase mobile processe o upload corretamente
       const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 
-      // Gera um nome único para o arquivo baseado no UID do usuário
       const fileExtension = localUri.split(".").pop();
       const fileName = `${user.uid}/avatar.${fileExtension}`;
 
-      // 2. Faz o upload para o bucket "avatars" (Usamos upsert: true para atualizar caso já exista uma foto)
+      // 2. Faz o upload para o bucket "avatars" no Supabase
       const { data, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(fileName, buffer, {
@@ -201,17 +217,19 @@ export default function PerfilScreen() {
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // 4. Salva de forma definitiva essa URL de foto dentro do documento do Firestore no Firebase
+      // 4. Salva a URL no documento do Firestore no Firebase
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, { photoUrl: publicUrl }, { merge: true });
 
-      // Atualiza a tela localmente na mesma hora
-      setImage(publicUrl);
-      alert("Foto de perfil atualizada com sucesso!");
+      // 5. Atualiza a tela localmente quebrando o cache com o timestamp dinâmico
+      const urlComCacheBuster = `${publicUrl}?t=${new Date().getTime()}`;
+      setImage(urlComCacheBuster);
+      
+      mostrarAvisoDiscreto("Foto de perfil atualizada com sucesso! ✨");
 
     } catch (error: any) {
       console.error("Erro no upload da imagem:", error);
-      alert("Erro ao salvar imagem: " + error.message);
+      mostrarAvisoDiscreto("Falha ao salvar imagem de perfil.", "erro");
     } finally {
       setUploadingImage(false);
     }
@@ -220,6 +238,7 @@ export default function PerfilScreen() {
   const handleSignOut = async () => {
     try {
       await auth.signOut();
+      router.replace("/login");
     } catch (error) {
       console.error("Erro ao sair:", error);
     }
@@ -232,7 +251,7 @@ export default function PerfilScreen() {
       setModalSonoVisivel(true);
     } else if (label === "Biorritmo") {
       setModalBiorritmoVisivel(true);
-    } else if (label === "Atividades") {
+    } {
       setModalAtividadesVisivel(true);
     }
   };
@@ -276,10 +295,9 @@ export default function PerfilScreen() {
               {image ? (
                 <Image source={{ uri: image }} style={styles.avatarImage} />
               ) : (
-                <Image
-                  source={{ uri: "https://via.placeholder.com/150" }}
-                  style={styles.avatarImage}
-                />
+                <View style={[styles.avatarImage, { backgroundColor: "#ECECF7", alignItems: "center", justifyContent: "center" }]}>
+                  <Ionicons name="person" size={48} color={colors.textSoft} />
+                </View>
               )}
               <TouchableOpacity
                 style={styles.cameraBadge}
@@ -347,17 +365,9 @@ export default function PerfilScreen() {
             { label: "Metas de hoje", icon: "target", lib: "Feather" },
             { label: "Biorritmo", icon: "heart-outline", lib: "Ionicons" },
             { label: "Atividades", icon: "run", lib: "MaterialCommunityIcons" },
-            {
-              label: "Treinos",
-              icon: "dumbbell",
-              lib: "MaterialCommunityIcons",
-            },
+            { label: "Treinos", icon: "dumbbell", lib: "MaterialCommunityIcons" },
             { label: "Sono", icon: "bed-outline", lib: "Ionicons" },
-            {
-              label: "Configurações",
-              icon: "settings-outline",
-              lib: "Ionicons",
-            },
+            { label: "Configurações", icon: "settings-outline", lib: "Ionicons" },
           ].map((item, index) => (
             <TouchableOpacity
               key={index}
@@ -591,6 +601,18 @@ export default function PerfilScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 🌟 COMPONENTE COMPACTO DO CARD DE AVISO DISCRETO (TOAST) */}
+      {toastVisivel && (
+        <View style={[styles.toastCard, toastIcone === "alert-circle" && { borderColor: "#EF4444" }]}>
+          <Ionicons 
+            name={toastIcone} 
+            size={20} 
+            color={toastIcone === "checkmark-circle" ? "#10B981" : "#EF4444"} 
+          />
+          <Text style={styles.toastText}>{toastMensagem}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -794,4 +816,33 @@ const styles = StyleSheet.create({
   },
   atividadeTitle: { fontSize: 14, fontWeight: "bold", color: colors.textDark },
   atividadeSub: { fontSize: 12, color: colors.textSoft, marginTop: 2 },
+  
+  // 🎨 ESTILOS DO CARD DISCRETO (TOAST)
+  toastCard: {
+    position: "absolute",
+    bottom: 40, // Flutua graciosamente na parte de baixo
+    left: 20,
+    right: 20,
+    backgroundColor: "#1E293B", 
+    borderWidth: 1,
+    borderColor: "#334155",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 9999,
+  },
+  toastText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 10,
+    flex: 1,
+  },
 });

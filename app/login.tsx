@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator, // Adicionado para dar feedback visual de carregamento
   Alert,
   Image,
   SafeAreaView,
@@ -11,11 +12,11 @@ import {
   View,
 } from "react-native";
 
-// --- IMPORTAÇÕES DO FIREBASE ---
+// --- IMPORTAÇÕES DO FIREBASE CORRIGIDAS ---
+import { signInWithEmailAndPassword } from "firebase/auth"; // Método oficial de Login
 import { addDoc, collection } from "firebase/firestore";
-import { db } from "../src/utils/firebaseConfig";
+import { auth, db } from "../src/utils/firebaseConfig"; // Importando o auth centralizado com a persistência
 
-// Interface para o TypeScript
 interface TentativaLogin {
   email: string;
   senha: string;
@@ -25,6 +26,7 @@ interface TentativaLogin {
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>("");
   const [senha, setSenha] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false); // Novo estado de carregamento
 
   const [erroEmail, setErroEmail] = useState<string>("");
   const [erroSenha, setErroSenha] = useState<string>("");
@@ -39,23 +41,21 @@ export default function LoginScreen() {
     if (erroSenha) setErroSenha("");
   };
 
-  // --- FUNÇÃO PARA SALVAR NO FIREBASE ---
-  const salvarNoFirebase = async (
+  // Mantive a função de salvar o histórico no banco que vocês criaram, caso queiram auditar os logins
+  const salvarHistoricoNoFirebase = async (
     novaTentativa: TentativaLogin,
   ): Promise<void> => {
     try {
       await addDoc(collection(db, "usuarios"), novaTentativa);
-      console.log("Dados enviados para o Firebase com sucesso!");
+      console.log("Histórico de tentativa enviado para o Firebase!");
     } catch (error) {
-      console.error("Erro ao salvar no Firebase:", error);
-      throw error;
+      console.error("Erro ao salvar histórico no Firebase:", error);
     }
   };
 
   const validarFormulario = (): boolean => {
     let valido = true;
 
-    // Validação do Email
     if (email.trim() === "") {
       setErroEmail("O e-mail é obrigatório");
       valido = false;
@@ -66,8 +66,6 @@ export default function LoginScreen() {
       setErroEmail("");
     }
 
-    // --- SENHA CORRIGIDA PARA FICAR IGUAL AO SIGNUP ---
-    // Agora só verifica se está vazio ou se tem menos de 6 caracteres
     if (senha.trim() === "") {
       setErroSenha("A senha é obrigatória");
       valido = false;
@@ -84,6 +82,8 @@ export default function LoginScreen() {
   const handleAcessar = async (): Promise<void> => {
     if (!validarFormulario()) return;
 
+    setLoading(true);
+
     const novaTentativa: TentativaLogin = {
       email: email,
       senha: senha,
@@ -91,13 +91,29 @@ export default function LoginScreen() {
     };
 
     try {
-      await salvarNoFirebase(novaTentativa);
+      // 🔥 O PULO DO GATO: Autentica oficialmente o usuário no Firebase Auth!
+      await signInWithEmailAndPassword(auth, email.trim(), senha);
+      
+      // Salva o log/histórico de acesso
+      await salvarHistoricoNoFirebase(novaTentativa);
+
       Alert.alert("Sucesso", "Login realizado com sucesso!");
       setEmail("");
       setSenha("");
+      
+      // Vai para a Home com a sessão ativa e persistente!
       router.replace("/home");
-    } catch (error) {
-      Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
+    } catch (error: any) {
+      console.error("ERRO NO LOGIN:", error);
+      
+      // Tratamento de erros amigável do Firebase Auth
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        Alert.alert("Erro de Acesso", "E-mail ou senha incorretos.");
+      } else {
+        Alert.alert("Erro", "Falha ao conectar com o servidor. Verifique sua internet.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,6 +149,7 @@ export default function LoginScreen() {
               onChangeText={handleEmailChange}
               autoCapitalize="none"
               keyboardType="email-address"
+              disabled={loading}
             />
             {erroEmail ? (
               <Text style={styles.errorText}>{erroEmail}</Text>
@@ -147,18 +164,30 @@ export default function LoginScreen() {
               secureTextEntry
               value={senha}
               onChangeText={handleSenhaChange}
+              disabled={loading}
             />
             {erroSenha ? (
               <Text style={styles.errorText}>{erroSenha}</Text>
             ) : null}
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleAcessar}>
-            <Text style={styles.buttonText}>Acessar</Text>
+          <TouchableOpacity 
+            style={[styles.button, loading && { opacity: 0.7 }]} 
+            onPress={handleAcessar}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Acessar</Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotContainer}>
-            <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
+          <TouchableOpacity 
+            style={styles.forgotContainer} 
+            onPress={() => router.push("/signup")} // Atalho caso queira ir para o cadastro
+          >
+            <Text style={styles.forgotText}>Não tem conta? Cadastre-se</Text>
           </TouchableOpacity>
         </View>
       </View>
