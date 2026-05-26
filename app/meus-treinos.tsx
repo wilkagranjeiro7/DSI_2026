@@ -1,9 +1,12 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+    Alert,
     FlatList,
+    Platform,
     SafeAreaView,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -11,15 +14,22 @@ import {
     View,
 } from "react-native";
 
+// Importações do Firebase
+import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { db } from "../src/utils/firebaseConfig"; // Mesma rota de antes!
+
 interface Treino {
   id: string;
   nome: string;
   descricao: string;
   info: string;
   tipo: string;
+  diasSemana?: string; // Para enviar pro editar depois
+  duracao?: string; // Para enviar pro editar depois
 }
 
-const TREINOS: Treino[] = [
+// Lista padrão inicial
+const TREINOS_PADRAO: Treino[] = [
   {
     id: "0",
     nome: "Treino de Alongamento",
@@ -50,19 +60,137 @@ const TREINOS: Treino[] = [
   },
 ];
 
-const FILTROS: string[] = ["Todos", "Hoje", "Força", "Cardio", "Alongamento"];
+// ADICIONADO: Filtro "Meus Salvos"
+const FILTROS: string[] = [
+  "Todos",
+  "Meus Salvos",
+  "Força",
+  "Cardio",
+  "Alongamento",
+];
 
 export default function MeusTreinosScreen() {
   const router = useRouter();
 
+  const [treinosList, setTreinosList] = useState<Treino[]>(TREINOS_PADRAO);
   const [busca, setBusca] = useState<string>("");
   const [filtro, setFiltro] = useState<string>("Todos");
 
-  const treinosFiltrados = TREINOS.filter((item) => {
+  // Caixinha para os treinos padrões que foram deletados
+  const [locaisExcluidos, setLocaisExcluidos] = useState<string[]>([]);
+
+  // Escutando a coleção de "treinos" no Firebase
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "treinos"), (snapshot) => {
+      const treinosFirebase = snapshot.docs.map((doc) => {
+        const data = doc.data();
+
+        return {
+          id: doc.id,
+          nome: data.nome || "Sem nome",
+          descricao: data.objetivo || "Sem descrição",
+          info: `${data.duracao || "Tempo N/A"} • ${data.dias || "Dias N/A"}`,
+          tipo: data.tipo || "Força", // Ex: Força, Cardio, etc.
+          diasSemana: data.dias || "",
+          duracao: data.duracao || "",
+          ...data, // Guarda tudo para passar para o modo Editar
+        } as Treino;
+      });
+
+      setTreinosList([...TREINOS_PADRAO, ...treinosFirebase]);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Lógica dos filtros atualizada
+  const treinosFiltrados = treinosList.filter((item) => {
+    // 1. Esconde os que você excluiu localmente
+    if (locaisExcluidos.includes(item.id)) return false;
+
+    // 2. Filtro da busca digitada
     const matchBusca = item.nome.toLowerCase().includes(busca.toLowerCase());
-    const matchFiltro = filtro === "Todos" || item.tipo === filtro;
+
+    // 3. Filtro dos botões (Chips)
+    let matchFiltro = true;
+    if (filtro === "Meus Salvos") {
+      matchFiltro = item.id.length > 10; // Só mostra os do Firebase
+    } else if (filtro !== "Todos") {
+      matchFiltro = item.tipo === filtro;
+    }
+
     return matchBusca && matchFiltro;
   });
+
+  const executarExclusao = async (id: string) => {
+    if (id.length > 5) {
+      // ID do Firebase
+      try {
+        await deleteDoc(doc(db, "treinos", id));
+        if (Platform.OS === "web") {
+          window.alert("Treino apagado com sucesso.");
+        } else {
+          Alert.alert("Pronto!", "Treino apagado com sucesso.");
+        }
+      } catch (erro: any) {
+        console.error("ERRO FIREBASE: ", erro);
+        if (Platform.OS === "web") {
+          window.alert("Erro de Permissão: O Firebase não deixou apagar.");
+        } else {
+          Alert.alert("Erro", "O Firebase não deixou apagar.");
+        }
+      }
+    } else {
+      // ID da lista padrão
+      setLocaisExcluidos((prev) => [...prev, id]);
+      if (Platform.OS === "web") {
+        window.alert("Treino apagado com sucesso.");
+      } else {
+        Alert.alert("Pronto!", "Treino apagado com sucesso.");
+      }
+    }
+  };
+
+  const handleExcluir = (id: string, nome: string) => {
+    if (Platform.OS === "web") {
+      const confirmou = window.confirm(
+        `Tem certeza que deseja excluir o "${nome}"?`,
+      );
+      if (confirmou) {
+        executarExclusao(id);
+      }
+    } else {
+      Alert.alert(
+        "Excluir Treino",
+        `Tem certeza que deseja excluir o "${nome}"?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Excluir",
+            style: "destructive",
+            onPress: () => executarExclusao(id),
+          },
+        ],
+      );
+    }
+  };
+
+  const handleEditar = (item: Treino) => {
+    // Manda os dados para a tela "criar-treino.tsx" que atualizamos antes
+    router.push({
+      pathname: "/criar-treino",
+      params: {
+        id: item.id,
+        nome: item.nome,
+        objetivo: item.descricao,
+        tipo: item.tipo,
+        dias: item.diasSemana || "",
+        duracao: item.duracao || "",
+        // Aqui você pode adicionar as observações se elas existirem no item
+        editando: "true",
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,62 +205,68 @@ export default function MeusTreinosScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <View>
-            <Text style={styles.title}>Meus treinos</Text>
-            <Text style={styles.subtitle}>Gerencie seus planos de treino</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.newButton}
-            onPress={() => router.push("/novo-treino")}
-          >
-            <Text style={styles.newButtonText}>+ Novo treino</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.label}>Busca</Text>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#9E9E9E" />
-          <TextInput
-            placeholder="Buscar treino"
-            style={styles.searchInput}
-            value={busca}
-            onChangeText={setBusca}
-          />
-        </View>
-
-        <View style={styles.filters}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={true}
-            data={FILTROS}
-            keyExtractor={(item) => item}
-            contentContainerStyle={{ gap: 10 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  filtro === item && styles.filterChipActive,
-                ]}
-                onPress={() => setFiltro(item)}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    filtro === item && styles.filterTextActive,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-
         <FlatList
           data={treinosFiltrados}
           keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          ListHeaderComponent={
+            <>
+              <View style={styles.titleRow}>
+                <View>
+                  <Text style={styles.title}>Meus treinos</Text>
+                  <Text style={styles.subtitle}>
+                    Gerencie seus planos de treino
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.newButton}
+                  onPress={() => router.push("/criar-treino")}
+                >
+                  <Text style={styles.newButtonText}>+ Novo treino</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.label}>Busca</Text>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={18} color="#9E9E9E" />
+                <TextInput
+                  placeholder="Buscar treino"
+                  style={styles.searchInput}
+                  value={busca}
+                  onChangeText={setBusca}
+                />
+              </View>
+
+              <View style={styles.filters}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 10 }}
+                >
+                  {FILTROS.map((item) => (
+                    <TouchableOpacity
+                      key={item}
+                      style={[
+                        styles.filterChip,
+                        filtro === item && styles.filterChipActive,
+                      ]}
+                      onPress={() => setFiltro(item)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterText,
+                          filtro === item && styles.filterTextActive,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          }
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
@@ -160,12 +294,20 @@ export default function MeusTreinosScreen() {
               </View>
 
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.editBtn}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => handleEditar(item)}
+                >
                   <Text style={styles.editText}>Editar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn}>
+
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleExcluir(item.id, item.nome)}
+                >
                   <Text style={styles.deleteText}>Excluir</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.exerciseBtn}
                   onPress={() =>
@@ -191,10 +333,22 @@ export default function MeusTreinosScreen() {
           <Ionicons name="home-outline" size={24} color="#A0A0A0" />
           <Text style={styles.tabText}>Início</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.tabItem}>
           <MaterialCommunityIcons name="dumbbell" size={24} color="#F28C1B" />
           <Text style={[styles.tabText, { color: "#F28C1B" }]}>Treinos</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem}>
+          <Feather name="target" size={24} color="#A0A0A0" />
+          <Text style={styles.tabText}>Metas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem}>
+          <Ionicons name="map-outline" size={24} color="#A0A0A0" />
+          <Text style={styles.tabText}>Mapa</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => router.push("/perfil")}
@@ -219,11 +373,12 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
   },
   headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
-  content: { flex: 1, padding: 20 },
+  content: { flex: 1, padding: 20, paddingBottom: 0 },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 10,
   },
   title: { fontSize: 24, fontWeight: "bold" },
   subtitle: { fontSize: 14, color: "#707070" },
@@ -257,60 +412,61 @@ const styles = StyleSheet.create({
   filterTextActive: { color: "#FFF" },
   card: {
     borderWidth: 1,
-    borderColor: "#EFEFEF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-  },
-  cardHeader: { flexDirection: "row", gap: 12 },
-  iconBox: {
-    width: 48,
-    height: 48,
+    borderColor: "#E0E0E0",
     borderRadius: 12,
-    backgroundColor: "#FFF3E0",
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: "#FAFAFA",
   },
-  cardTitle: { fontWeight: "bold", fontSize: 16 },
-  cardDesc: { fontSize: 13, color: "#707070" },
-  cardInfo: { fontSize: 12, color: "#9E9E9E", marginTop: 2 },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  iconBox: {
+    backgroundColor: "#FFF3E0",
+    padding: 10,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  cardDesc: { fontSize: 14, color: "#666", marginTop: 2 },
+  cardInfo: { fontSize: 12, color: "#999", marginTop: 4 },
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+    paddingTop: 12,
+    marginTop: 8,
   },
   editBtn: {
-    borderWidth: 1,
-    borderColor: "#F28C1B",
-    borderRadius: 20,
-    paddingHorizontal: 14,
     paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#E3F2FD",
   },
-  editText: { color: "#F28C1B", fontWeight: "600" },
+  editText: { color: "#1E88E5", fontWeight: "600" },
   deleteBtn: {
-    borderWidth: 1,
-    borderColor: "#FF5A5A",
-    borderRadius: 20,
-    paddingHorizontal: 14,
     paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#FFEBEE",
   },
-  deleteText: { color: "#FF5A5A", fontWeight: "600" },
+  deleteText: { color: "#E53935", fontWeight: "600" },
   exerciseBtn: {
-    backgroundColor: "#F28C1B",
-    borderRadius: 20,
-    paddingHorizontal: 16,
     paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#FFF3E0",
   },
-  exerciseText: { color: "#FFF", fontWeight: "600" },
+  exerciseText: { color: "#F28C1B", fontWeight: "600" },
   bottomBar: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
+    justifyContent: "space-between",
+    alignItems: "center",
     borderTopWidth: 1,
-    borderColor: "#E0E0E0",
+    borderTopColor: "#E0E0E0",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     backgroundColor: "#FFF",
-    paddingBottom: 25,
   },
-  tabItem: { alignItems: "center", justifyContent: "center" },
-  tabText: { fontSize: 12, color: "#A0A0A0", marginTop: 4, fontWeight: "500" },
+  tabItem: { alignItems: "center" },
+  tabText: { fontSize: 12, color: "#A0A0A0", marginTop: 4 },
 });

@@ -59,6 +59,7 @@ export default function PerfilScreen() {
     }
   }
 
+  // Busca dados do Firebase de forma dinâmica com o listener ativo
   useEffect(() => {
     carregarPerfil();
   }, []);

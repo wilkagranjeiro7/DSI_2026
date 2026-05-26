@@ -1,24 +1,26 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth"; // Adicione essa linha
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage"; // Importamos o AsyncStorage
+import { initializeApp } from "firebase/app";
+import { getReactNativePersistence, initializeAuth } from "firebase/auth"; // Mudamos aqui!
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAoeDdAknszJyXZ2D-qGzRFVnUPne-6uaI",
-  authDomain: "fitmatch-dsi.firebaseapp.com",
-  projectId: "fitmatch-dsi",
-  storageBucket: "fitmatch-dsi.firebasestorage.app",
-  messagingSenderId: "320194100054",
-  appId: "1:320194100054:web:e4bb5f55c08861a4c0b4f7",
-  measurementId: "G-919M9V2FVR",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
 
-// Lógica correta para não duplicar
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Inicializa o Firebase App
+const app = initializeApp(firebaseConfig);
 
-// Inicializa os serviços
+// Inicializa o Auth com PERSISTÊNCIA para o usuário não ser deslogado na troca de telas/galeria
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+});
+
+// Inicializa o Firestore
 const db = getFirestore(app);
-const auth = getAuth(app); // Inicializa o Auth de forma simples
 
-// Exporta tudo para usar nas outras telas
 export { app, auth, db };
-
