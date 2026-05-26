@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     FlatList,
-    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -46,7 +45,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     seriesRep: "2 séries • 15 voltas",
     categoria: "Alongamento",
     instrucoes:
-      "Excelente exercício para liberar a tensão acumulada na região do pescoço e trapézio, preparando as articulações superiores para o treino e melhorando a postura.",
+      "Excelente exercício para liberar a tensão acumulada na região do pescoço e trapézio.",
   },
   {
     id: "41",
@@ -54,8 +53,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Pré-Treino • Core e Costas",
     seriesRep: "2 séries • 30 segundos",
     categoria: "Alongamento",
-    instrucoes:
-      "Movimento dinâmico que aquece a coluna vertebral e ativa a musculatura do core, promovendo maior mobilidade articular e prevenindo dores lombares.",
+    instrucoes: "Movimento dinâmico que aquece a coluna vertebral.",
   },
   {
     id: "42",
@@ -63,8 +61,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Pré-Treino • Inferior",
     seriesRep: "2 séries • 15 vezes cada",
     categoria: "Alongamento",
-    instrucoes:
-      "Ideal para soltar a articulação do quadril e promover o aquecimento dinâmico dos membros inferiores antes de treinos intensos ou sessões de corrida.",
+    instrucoes: "Ideal para soltar a articulação do quadril.",
   },
   {
     id: "43",
@@ -72,8 +69,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Pré-Treino • Corpo Todo",
     seriesRep: "3 séries • 45 segundos",
     categoria: "Alongamento",
-    instrucoes:
-      "Exercício cardiovascular clássico que eleva a frequência cardíaca, estimula a circulação sanguínea e aquece o corpo inteiro de forma rápida e eficiente.",
+    instrucoes: "Exercício cardiovascular clássico.",
   },
   {
     id: "30",
@@ -81,8 +77,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Relaxamento • Parte Superior",
     seriesRep: "1 série • 30 segundos",
     categoria: "Alongamento",
-    instrucoes:
-      "Movimento estático focado no relaxamento da musculatura dos ombros e braços. É ideal para o pós-treino de superiores ou para aliviar tensões do dia a dia.",
+    instrucoes: "Movimento estático focado no relaxamento.",
   },
   {
     id: "33",
@@ -90,8 +85,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Relaxamento • Parte Inferior",
     seriesRep: "1 série • 30 segundos",
     categoria: "Alongamento",
-    instrucoes:
-      "Focado no alongamento da parte frontal da coxa. Muito importante para melhorar a flexibilidade, relaxar a musculatura e prevenir encurtamentos articulares.",
+    instrucoes: "Focado no alongamento da parte frontal da coxa.",
   },
   {
     id: "14",
@@ -99,8 +93,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Peitoral e Tríceps",
     seriesRep: "4 séries • 10 a 12 repetições",
     categoria: "Superior",
-    instrucoes:
-      "Um dos exercícios mais completos e tradicionais para a construção de força e volume no peitoral, recrutando também o tríceps e a parte frontal dos ombros.",
+    instrucoes: "Construção de força e volume no peitoral.",
   },
   {
     id: "15",
@@ -108,8 +101,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Costas e Bíceps",
     seriesRep: "4 séries • 12 repetições",
     categoria: "Costas",
-    instrucoes:
-      "Exercício fundamental para o desenvolvimento da largura das costas (dorsais). Ajuda a melhorar a postura e desenvolve a força necessária para exercícios de puxada.",
+    instrucoes: "Desenvolvimento da largura das costas.",
   },
   {
     id: "16",
@@ -117,8 +109,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Ombros",
     seriesRep: "3 séries • 12 repetições",
     categoria: "Superior",
-    instrucoes:
-      "Focado na construção de ombros fortes e desenhados. Trabalha intensamente as porções frontal e lateral dos deltoides, melhorando a estabilidade da cintura escapular.",
+    instrucoes: "Focado na construção de ombros fortes.",
   },
   {
     id: "17",
@@ -126,8 +117,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia/Casa • Bíceps",
     seriesRep: "3 séries • 12 repetições",
     categoria: "Superior",
-    instrucoes:
-      "O movimento clássico para isolar e desenvolver os bíceps. Promove o ganho de força e definição na parte frontal dos braços de forma simples e direta.",
+    instrucoes: "Isolar e desenvolver os bíceps.",
   },
   {
     id: "18",
@@ -135,8 +125,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Tríceps",
     seriesRep: "3 séries • 15 repetições",
     categoria: "Superior",
-    instrucoes:
-      "Excelente exercício para isolar a musculatura do tríceps, ajudando a tonificar, fortalecer e dar volume à parte de trás do braço.",
+    instrucoes: "Isolar a musculatura do tríceps.",
   },
   {
     id: "1",
@@ -144,8 +133,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Pernas Geral",
     seriesRep: "4 séries • 10 repetições",
     categoria: "Inferior",
-    instrucoes:
-      "Considerado o rei dos exercícios de perna. Trabalha simultaneamente quadríceps, glúteos e core, sendo essencial para ganho de força global e massa muscular.",
+    instrucoes: "Rei dos exercícios de perna.",
   },
   {
     id: "2",
@@ -153,8 +141,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Quadríceps e Glúteos",
     seriesRep: "4 séries • 12 repetições",
     categoria: "Inferior",
-    instrucoes:
-      "Ótima alternativa para focar no trabalho pesado de pernas (quadríceps e glúteos) oferecendo um maior suporte e estabilidade para a região da coluna lombar.",
+    instrucoes: "Trabalho pesado de pernas.",
   },
   {
     id: "3",
@@ -162,8 +149,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Quadríceps",
     seriesRep: "3 séries • 15 repetições",
     categoria: "Inferior",
-    instrucoes:
-      "Exercício isolado focado 100% no quadríceps. Perfeito para definir a parte frontal da coxa, fortalecer a articulação do joelho e trabalhar até a falha muscular.",
+    instrucoes: "Exercício isolado focado no quadríceps.",
   },
   {
     id: "4",
@@ -171,8 +157,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Quadríceps e Glúteos",
     seriesRep: "3 séries • 10 repetições cada perna",
     categoria: "Inferior",
-    instrucoes:
-      "Movimento unilateral poderoso que exige equilíbrio e recruta intensamente os glúteos e quadríceps de cada perna individualmente, corrigindo assimetrias.",
+    instrucoes: "Movimento unilateral poderoso.",
   },
   {
     id: "5",
@@ -180,8 +165,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Glúteos",
     seriesRep: "4 séries • 12 a 15 repetições",
     categoria: "Inferior",
-    instrucoes:
-      "O exercício número um para focar no desenvolvimento dos glúteos. Permite trabalhar com bastante carga, ativando a musculatura de forma profunda e eficaz.",
+    instrucoes: "Número um para glúteos.",
   },
   {
     id: "6",
@@ -189,8 +173,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Posteriores de Coxa",
     seriesRep: "4 séries • 12 repetições",
     categoria: "Inferior",
-    instrucoes:
-      "Focado no isolamento da parte de trás da coxa (isquiotibiais). Essencial para prevenir lesões nos joelhos e equilibrar a força das pernas em relação aos quadríceps.",
+    instrucoes: "Isolamento da parte de trás da coxa.",
   },
   {
     id: "19",
@@ -198,8 +181,7 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Academia • Aeróbico",
     seriesRep: "1 sessão • 20 a 30 min",
     categoria: "Cardio",
-    instrucoes:
-      "Excelente atividade aeróbica contínua. Ajuda na queima de calorias, melhora do condicionamento cardiovascular, resistência física e saúde do coração.",
+    instrucoes: "Melhora do condicionamento cardiovascular.",
   },
   {
     id: "22",
@@ -207,174 +189,143 @@ const EXERCICIOS_PADRAO: Exercicio[] = [
     grupo: "Geral • Fortalecimento de Core",
     seriesRep: "4 séries • 20 repetições",
     categoria: "Abdômen",
-    instrucoes:
-      "Focado no fortalecimento direto da parede abdominal. Um core forte melhora a sua postura diária e ajuda a estabilizar o corpo em praticamente todos os outros exercícios.",
+    instrucoes: "Fortalecimento direto da parede abdominal.",
   },
 ];
 
 export default function MeusExerciciosScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const treinoSelecionado = params.treinoSelecionado as string | undefined;
+
+  const categoriaInicial = params.categoriaInicial as string;
 
   const [exerciciosList, setExerciciosList] =
     useState<Exercicio[]>(EXERCICIOS_PADRAO);
-  const [filtroAtivo, setFiltroAtivo] = useState<string>("Todos");
+  const [filtroAtivo, setFiltroAtivo] = useState<string>(
+    categoriaInicial || "Todos",
+  );
   const [busca, setBusca] = useState<string>("");
   const [concluidos, setConcluidos] = useState<string[]>([]);
   const [locaisExcluidos, setLocaisExcluidos] = useState<string[]>([]);
 
+  useEffect(() => {
+    if (categoriaInicial) setFiltroAtivo(categoriaInicial);
+  }, [categoriaInicial]);
+
   useFocusEffect(
     useCallback(() => {
       const carregarConcluidos = async () => {
-        try {
-          const salvos = await AsyncStorage.getItem("exerciciosConcluidos");
-          if (salvos) {
-            setConcluidos(JSON.parse(salvos));
-          }
-        } catch (erro) {
-          console.error("Erro ao carregar os exercícios concluídos:", erro);
-        }
+        const salvos = await AsyncStorage.getItem("exerciciosConcluidos");
+        if (salvos) setConcluidos(JSON.parse(salvos));
       };
       carregarConcluidos();
     }, []),
   );
 
+  // CORREÇÃO: carrega edições locais dos padrões e mescla com Firebase
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "exercicios"), (snapshot) => {
-      const exerciciosFirebase = snapshot.docs.map((doc) => {
-        const data = doc.data();
+    const carregarEdicoesPadrao = async () => {
+      const raw = await AsyncStorage.getItem("edicoesPadrao");
+      return raw ? JSON.parse(raw) : {};
+    };
 
-        let cat = "Superior";
-        const grupoCheck = (data.grupoMuscular || "").toLowerCase();
+    const unsubscribe = onSnapshot(
+      collection(db, "exercicios"),
+      async (snapshot) => {
+        const edicoes = await carregarEdicoesPadrao();
 
-        if (
-          grupoCheck.includes("perna") ||
-          grupoCheck.includes("inferior") ||
-          grupoCheck.includes("glúteo")
-        )
-          cat = "Inferior";
-        else if (grupoCheck.includes("abd")) cat = "Abdômen";
-        else if (
-          grupoCheck.includes("cardio") ||
-          grupoCheck.includes("esteira")
-        )
-          cat = "Cardio";
-        else if (grupoCheck.includes("costas") || grupoCheck.includes("dorsal"))
-          cat = "Costas";
-        else if (grupoCheck.includes("alongamento")) cat = "Alongamento";
+        const exerciciosFirebase = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          let cat = "Superior";
+          const grupoCheck = (data.grupoMuscular || "").toLowerCase();
+          if (
+            grupoCheck.includes("perna") ||
+            grupoCheck.includes("inferior") ||
+            grupoCheck.includes("glúteo")
+          )
+            cat = "Inferior";
+          else if (grupoCheck.includes("abd")) cat = "Abdômen";
+          else if (
+            grupoCheck.includes("cardio") ||
+            grupoCheck.includes("esteira")
+          )
+            cat = "Cardio";
+          else if (
+            grupoCheck.includes("costas") ||
+            grupoCheck.includes("dorsal")
+          )
+            cat = "Costas";
+          else if (grupoCheck.includes("alongamento")) cat = "Alongamento";
+          return {
+            id: doc.id,
+            nome: data.nome || "Sem nome",
+            grupo: data.grupoMuscular || "Geral",
+            seriesRep: `${data.series} séries • ${data.repeticoes}`,
+            categoria: cat,
+            instrucoes: data.descricao || "",
+            ...data,
+          } as Exercicio;
+        });
 
-        return {
-          id: doc.id,
-          nome: data.nome || "Sem nome",
-          grupo: data.grupoMuscular || "Geral",
-          seriesRep: `${data.series} séries • ${data.repeticoes}`,
-          categoria: cat,
-          instrucoes: data.descricao || "",
-          ...data,
-        } as Exercicio;
-      });
+        // Aplica edições locais nos exercícios padrão
+        const padraoAtualizado = EXERCICIOS_PADRAO.map((ex) =>
+          edicoes[ex.id] ? { ...ex, ...edicoes[ex.id] } : ex,
+        );
 
-      setExerciciosList([...EXERCICIOS_PADRAO, ...exerciciosFirebase]);
-    });
-
+        setExerciciosList([...padraoAtualizado, ...exerciciosFirebase]);
+      },
+    );
     return () => unsubscribe();
   }, []);
 
-  const toggleConcluido = async (id: string) => {
-    try {
-      let novaLista;
-      if (concluidos.includes(id)) {
-        novaLista = concluidos.filter((i) => i !== id);
-      } else {
-        novaLista = [...concluidos, id];
-        if (Platform.OS === "web") {
-          window.alert("Exercício concluído com sucesso!");
-        } else {
-          Alert.alert("Parabéns!", "Exercício concluído com sucesso!");
-        }
-      }
-      setConcluidos(novaLista);
-      await AsyncStorage.setItem(
-        "exerciciosConcluidos",
-        JSON.stringify(novaLista),
-      );
-    } catch (erro) {
-      console.error("Erro ao salvar checkbox:", erro);
-    }
-  };
-
   const exerciciosFiltrados = useMemo(() => {
     let lista = exerciciosList.filter((ex) => !locaisExcluidos.includes(ex.id));
-
-    if (filtroAtivo === "Meus Salvos") {
+    if (filtroAtivo === "Meus Salvos")
       lista = lista.filter((ex) => ex.id.length > 10);
-    } else if (filtroAtivo !== "Todos") {
+    else if (filtroAtivo !== "Todos")
       lista = lista.filter((ex) => ex.categoria === filtroAtivo);
-    }
-
-    if (busca) {
+    if (busca)
       lista = lista.filter((ex) =>
         ex.nome.toLowerCase().includes(busca.toLowerCase()),
       );
-    }
-
     return lista;
   }, [filtroAtivo, busca, exerciciosList, locaisExcluidos]);
 
-  // CORRIGIDO AQUI: executarExclusao escrito com 'x'
+  const toggleConcluido = async (id: string) => {
+    const novaLista = concluidos.includes(id)
+      ? concluidos.filter((i) => i !== id)
+      : [...concluidos, id];
+    setConcluidos(novaLista);
+    await AsyncStorage.setItem(
+      "exerciciosConcluidos",
+      JSON.stringify(novaLista),
+    );
+  };
+
   const executarExclusao = async (id: string) => {
-    if (id.length > 5) {
-      try {
-        await deleteDoc(doc(db, "exercicios", id));
-        if (Platform.OS === "web") {
-          window.alert("Exercício apagado com sucesso.");
-        } else {
-          Alert.alert("Pronto!", "Exercício apagado com sucesso.");
-        }
-      } catch (erro: any) {
-        console.error("ERRO FIREBASE: ", erro);
-        if (Platform.OS === "web") {
-          window.alert("Erro de Permissão: O Firebase não deixou apagar.");
-        } else {
-          Alert.alert("Erro", "O Firebase não deixou apagar.");
-        }
-      }
-    } else {
-      setLocaisExcluidos((prev) => [...prev, id]);
-      if (Platform.OS === "web") {
-        window.alert("Exercício apagado com sucesso.");
-      } else {
-        Alert.alert("Pronto!", "Exercício apagado com sucesso.");
-      }
-    }
+    if (id.length > 5) await deleteDoc(doc(db, "exercicios", id));
+    else setLocaisExcluidos((prev) => [...prev, id]);
+    Alert.alert("Pronto!", "Exercício apagado com sucesso.");
   };
 
   const handleExcluir = (id: string, nome: string) => {
-    if (Platform.OS === "web") {
-      const confirmou = window.confirm(
-        `Tem certeza que deseja excluir "${nome}"?`,
-      );
-      if (confirmou) {
-        executarExclusao(id); // CORRIGIDO AQUI: executarExclusao escrito com 'x'
-      }
-    } else {
-      Alert.alert(
-        "Excluir Exercício",
-        `Tem certeza que deseja excluir "${nome}"?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Excluir",
-            style: "destructive",
-            onPress: () => executarExclusao(id), // CORRIGIDO AQUI: executarExclusao escrito com 'x'
-          },
-        ],
-      );
-    }
+    Alert.alert(
+      "Excluir Exercício",
+      `Tem certeza que deseja excluir "${nome}"?`,
+      [
+        { text: "Cancelar" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => executarExclusao(id),
+        },
+      ],
+    );
   };
 
+  // CORREÇÃO: adiciona flag isFirebase nos params
   const handleEditar = (item: Exercicio) => {
+    const isFirebase = item.id.length > 10;
     router.push({
       pathname: "/criar-exercicios",
       params: {
@@ -383,6 +334,7 @@ export default function MeusExerciciosScreen() {
         grupoMuscular: item.grupo,
         instrucoes: item.instrucoes,
         editando: "true",
+        isFirebase: isFirebase ? "true" : "false",
       },
     });
   };
@@ -398,20 +350,15 @@ export default function MeusExerciciosScreen() {
           <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
         </TouchableOpacity>
       </View>
-
       <View style={styles.content}>
         <FlatList
           data={exerciciosFiltrados}
           keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
           ListHeaderComponent={
             <>
               <View style={styles.titleContainer}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.mainTitle} numberOfLines={1}>
-                    Biblioteca de exercícios
-                  </Text>
+                  <Text style={styles.mainTitle}>Biblioteca de exercícios</Text>
                   <Text style={styles.subTitleHeader}>
                     Gerencie o seu treino
                   </Text>
@@ -423,18 +370,15 @@ export default function MeusExerciciosScreen() {
                   <Text style={styles.btnNovoExercicioText}>+ Novo</Text>
                 </TouchableOpacity>
               </View>
-
               <View style={styles.searchBox}>
                 <Ionicons name="search-outline" size={20} color="#A0A0A0" />
                 <TextInput
-                  placeholder="Buscar exercício"
-                  placeholderTextColor="#A0A0A0"
                   style={styles.input}
+                  placeholder="Buscar exercício"
                   value={busca}
                   onChangeText={setBusca}
                 />
               </View>
-
               <View style={styles.filterWrapper}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {FILTROS_EXERCICIOS.map((cat) => (
@@ -482,7 +426,6 @@ export default function MeusExerciciosScreen() {
                     color={concluidos.includes(item.id) ? "#4CAF50" : "#A0A0A0"}
                   />
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.cardInfoTouchable}
                   onPress={() =>
@@ -501,11 +444,9 @@ export default function MeusExerciciosScreen() {
                   <View style={styles.textContainer}>
                     <Text style={styles.workoutTitle}>{item.nome}</Text>
                     <Text style={styles.workoutSub}>{item.grupo}</Text>
-                    <Text style={styles.workoutSpecs}>{item.seriesRep}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
-
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.editBtn}
@@ -523,27 +464,6 @@ export default function MeusExerciciosScreen() {
             </View>
           )}
         />
-      </View>
-
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/")}
-        >
-          <Ionicons name="home-outline" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Início</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem}>
-          <MaterialCommunityIcons name="dumbbell" size={24} color="#F28C1B" />
-          <Text style={[styles.tabText, { color: "#F28C1B" }]}>Treinos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/perfil")}
-        >
-          <Ionicons name="person-outline" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Perfil</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -654,15 +574,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFEBEE",
   },
   deleteText: { color: "#E53935", fontWeight: "600" },
-  bottomBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: "#FFF",
-    paddingBottom: 25,
-  },
-  tabItem: { alignItems: "center", justifyContent: "center" },
-  tabText: { fontSize: 12, color: "#A0A0A0", marginTop: 4, fontWeight: "500" },
 });
