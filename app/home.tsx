@@ -5,6 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
