@@ -1,19 +1,19 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router"; // Lendo parâmetros
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
-// Importações do Firebase: Adicionado updateDoc e doc
-import { addDoc, collection, updateDoc, doc } from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
 import { db } from "../src/utils/firebaseConfig";
 
 const colors = {
@@ -28,11 +28,9 @@ const colors = {
 export default function CriarExerciciosScreen() {
   const router = useRouter();
 
-  // Lendo os dados se viemos pelo botão de Editar
   const params = useLocalSearchParams();
   const editando = params.editando === "true";
 
-  // As "caixinhas" agora tentam preencher com os dados do Editar, se existirem
   const [nome, setNome] = useState<string>((params.nome as string) || "");
   const [grupoMuscular, setGrupoMuscular] = useState<string>(
     (params.grupoMuscular as string) || "",
@@ -52,23 +50,32 @@ export default function CriarExerciciosScreen() {
     }
 
     try {
-      // SE ESTIVER EDITANDO UM ARQUIVO DO FIREBASE (ID LONGO)
-      if (editando && params.id && (params.id as string).length > 10) {
-        const idDoFirebase = params.id as string;
+      if (editando) {
+        const isFirebase = params.isFirebase === "true";
 
-        await updateDoc(doc(db, "exercicios", idDoFirebase), {
-          nome,
-          grupoMuscular,
-          equipamento,
-          series,
-          repeticoes,
-          descanso,
-          descricao,
-        });
+        if (isFirebase) {
+          await updateDoc(doc(db, "exercicios", params.id as string), {
+            nome,
+            grupoMuscular,
+            equipamento,
+            series,
+            repeticoes,
+            descanso,
+            descricao,
+          });
+        } else {
+          const raw = await AsyncStorage.getItem("edicoesPadrao");
+          const edicoes = raw ? JSON.parse(raw) : {};
+          edicoes[params.id as string] = {
+            nome,
+            grupo: grupoMuscular,
+            instrucoes: descricao,
+          };
+          await AsyncStorage.setItem("edicoesPadrao", JSON.stringify(edicoes));
+        }
+
         Alert.alert("Sucesso!", "Exercício atualizado com sucesso.");
-      }
-     
-      else {
+      } else {
         await addDoc(collection(db, "exercicios"), {
           nome,
           grupoMuscular,
@@ -129,7 +136,6 @@ export default function CriarExerciciosScreen() {
               : "Cadastre um exercício para o treino"}
           </Text>
 
-          {/* O RESTO DO FORMULÁRIO CONTINUA IGUAL! */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nome do exercício</Text>
             <TextInput
@@ -227,7 +233,6 @@ export default function CriarExerciciosScreen() {
   );
 }
 
-// Estilos continuam os mesmos!
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1, backgroundColor: colors.background },
