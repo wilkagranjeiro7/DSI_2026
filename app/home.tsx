@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 import { auth, db } from "../src/utils/firebaseConfig";
 
 // Paleta de cores oficial do FitMatch
@@ -269,33 +270,8 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Barra de navegação inferior integrada */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="home-outline" size={22} color={colors.primary} />
-            <Text style={styles.tabText}>Início</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <MaterialCommunityIcons name="arm-flex-outline" size={22} color={colors.primary} />
-            <Text style={styles.tabText}>Treinos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/metas")}>
-            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-            <Text style={styles.tabText}>Metas</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="navigate-outline" size={22} color={colors.primary} />
-            <Text style={styles.tabText}>Mapa</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/perfil")}>
-            <Ionicons name="person-outline" size={22} color={colors.primary} />
-            <Text style={styles.tabText}>Perfil</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Barra de navegação inferior */}
+        <BottomNavbar active="home" />
       </View>
 
       {/* 🌟 COMPONENTE DO CARD DE AVISO DISCRETO (TOAST DA HOME) */}
@@ -429,23 +405,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallCardSubtitle: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  tabBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 85, 
-    backgroundColor: colors.tabBg,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingBottom: 18, 
-  },
-  tabItem: { alignItems: "center", justifyContent: "center" },
-  tabText: { fontSize: 12, color: colors.text, marginTop: 2 },
-  
   toastCard: {
     position: "absolute",
     bottom: 100, 

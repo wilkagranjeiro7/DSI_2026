@@ -2,13 +2,14 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-    Dimensions,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 // --- O TRUQUE: IMPORTAÇÃO DINÂMICA DO MAPA ---
 let MapView: any = View;
@@ -299,6 +300,7 @@ export default function MapScreen() {
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color="#111827" />
       </TouchableOpacity>
+      <BottomNavbar active="mapa" />
     </View>
   );
 }
