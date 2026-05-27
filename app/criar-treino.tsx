@@ -1,18 +1,19 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 // Importações do Firebase
 import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
@@ -222,47 +223,8 @@ export default function CriarTreinoScreen() {
         </KeyboardAvoidingView>
 
         {/* BARRA DE NAVEGAÇÃO INFERIOR */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/home")}
-          >
-            <Ionicons name="home-outline" size={24} color={colors.textSoft} />
-            <Text style={styles.tabText}>Início</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/meus-treinos")}
-          >
-            <MaterialCommunityIcons
-              name="dumbbell"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={[styles.tabText, { color: colors.primary }]}>
-              Treinos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Feather name="target" size={24} color={colors.textSoft} />
-            <Text style={styles.tabText}>Metas</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="map-outline" size={24} color={colors.textSoft} />
-            <Text style={styles.tabText}>Mapa</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/perfil")}
-          >
-            <Ionicons name="person-outline" size={24} color={colors.textSoft} />
-            <Text style={styles.tabText}>Perfil</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNavbar active="treinos" />
+        
       </View>
     </SafeAreaView>
   );

@@ -1,15 +1,16 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 import MetaCard from "../src/components/metas/MetaCard";
 import Meta from "../src/models/Meta";
@@ -132,32 +133,8 @@ export default function MetasScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.tabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")}>
-            <Ionicons name="home-outline" size={21} color="#9CA3AF" />
-            <Text style={styles.tabText}>Início</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <MaterialCommunityIcons name="arm-flex-outline" size={21} color="#9CA3AF" />
-            <Text style={styles.tabText}>Treinos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="add-circle-outline" size={21} color="#FF8500" />
-            <Text style={[styles.tabText, styles.tabTextActive]}>Metas</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="navigate-outline" size={21} color="#9CA3AF" />
-            <Text style={styles.tabText}>Mapa</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/perfil")}>
-            <Ionicons name="person-outline" size={21} color="#9CA3AF" />
-            <Text style={styles.tabText}>Perfil</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNavbar active="metas" />
+        
       </View>
     </SafeAreaView>
   );
@@ -245,33 +222,5 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#6B7280",
     marginTop: 6,
-  },
-  tabBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 16,
-    right: 16,
-    height: 66,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  tabItem: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabText: {
-    fontSize: 10,
-    color: "#9CA3AF",
-    marginTop: 3,
-    fontWeight: "700",
-  },
-  tabTextActive: {
-    color: "#FF8500",
-  },
+  }
 });

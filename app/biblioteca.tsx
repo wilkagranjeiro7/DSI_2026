@@ -2,15 +2,16 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-    FlatList,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 // Mantendo os filtros organizados por categorias gerais de treino
 const CATEGORIAS = [
@@ -213,6 +214,7 @@ export default function BibliotecaRoute() {
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       </View>
+      <BottomNavbar active="treinos" />
     </SafeAreaView>
   );
 }
