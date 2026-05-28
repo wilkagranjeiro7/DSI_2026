@@ -9,6 +9,7 @@ export interface PerfilDados {
   objetivo?: string;
   nivel?: string;
   observacoes?: string;
+  photoUrl?: string; // 🌟 1. ADICIONADO AQUI
 }
 
 export interface PerfilFormulario {
@@ -21,6 +22,7 @@ export interface PerfilFormulario {
   objetivo: string;
   nivel: string;
   observacoes: string;
+  photoUrl?: string; // 🌟 2. ADICIONADO AQUI (Opcional no formulário)
 }
 
 class Perfil {
@@ -34,6 +36,7 @@ class Perfil {
   objetivo: string;
   nivel: string;
   observacoes: string;
+  photoUrl: string; // 🌟 3. ADICIONADO AQUI
 
   constructor({
     id = null,
@@ -46,6 +49,7 @@ class Perfil {
     objetivo = "",
     nivel = "",
     observacoes = "",
+    photoUrl = "", // 🌟 4. ADICIONADO AQUI NO CONSTRUTOR
   }: PerfilDados) {
     this.id = id;
     this.nome = nome;
@@ -57,6 +61,7 @@ class Perfil {
     this.objetivo = objetivo;
     this.nivel = nivel;
     this.observacoes = observacoes;
+    this.photoUrl = photoUrl; // 🌟 5. SALVA AQUI NA CLASSE
   }
 
   toFirestore() {
@@ -70,6 +75,7 @@ class Perfil {
       objetivo: this.objetivo,
       nivel: this.nivel,
       observacoes: this.observacoes,
+      photoUrl: this.photoUrl, // 🌟 6. GARANTE QUE SALVE NO FIREBASE SE ENVIAR PELO FORMULÁRIO
     };
   }
 }
