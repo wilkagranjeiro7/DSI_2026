@@ -84,18 +84,29 @@ export default function HomeScreen() {
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
           try {
+            // Tenta buscar no nó padrão de usuários
             const userDoc = await getDoc(doc(db, "users", user.uid));
             let nomeExibicao = user.displayName || "Usuário";
             
             if (userDoc.exists()) {
               const dados = userDoc.data();
-              if (dados.name) nomeExibicao = dados.name;
+              // 🔄 AJUSTE DE COMPATIBILIDADE: Verifica se o nome está em 'nome' (novo padrão) ou 'name' (antigo)
+              if (dados.nome) nomeExibicao = dados.nome;
+              else if (dados.name) nomeExibicao = dados.name;
               
               // Recarrega a foto quebrando o cache com o timestamp atualizado
               if (dados.photoUrl) {
                 setUserPhoto(`${dados.photoUrl}?t=${new Date().getTime()}`);
               } else {
                 setUserPhoto(null);
+              }
+            } else {
+              // Caso o amigo tenha mudado o nó principal para "perfis", faz o fallback de segurança
+              const perfilDoc = await getDoc(doc(db, "perfis", user.uid));
+              if (perfilDoc.exists()) {
+                const dadosPerfil = perfilDoc.data();
+                if (dadosPerfil.nome) nomeExibicao = dadosPerfil.nome;
+                if (dadosPerfil.photoUrl) setUserPhoto(`${dadosPerfil.photoUrl}?t=${new Date().getTime()}`);
               }
             }
             setUserName(nomeExibicao);
@@ -117,7 +128,6 @@ export default function HomeScreen() {
   const handleSignOut = async () => {
     try {
       mostrarAvisoDiscreto("Saindo da conta... Até logo! 👋");
-      // Aguarda 1 segundo para o usuário ler a mensagem antes de ir para o login
       setTimeout(async () => {
         await auth.signOut();
         router.replace("/login");
@@ -241,6 +251,7 @@ export default function HomeScreen() {
             <SmallCard
               title="Estabelecer metas"
               subtitle="Defina objetivos de treino"
+              onPress={() => router.push("/metas")} // 🔄 CORRIGIDO: Aponta para a nova tela de metas criada pelo seu colega
               icon={<Feather name="target" size={54} color={colors.primary} />}
             />
 
@@ -259,6 +270,7 @@ export default function HomeScreen() {
             <SmallCard
               title="Treinos favoritos"
               subtitle="Acesse rapidamente"
+              onPress={() => router.push("/meus-treinos")}
               icon={
                 <Ionicons
                   name="heart-outline"
@@ -270,7 +282,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Barra de navegação inferior */}
+        {/* Barra de navegação inferior global */}
         <BottomNavbar active="home" />
       </View>
 

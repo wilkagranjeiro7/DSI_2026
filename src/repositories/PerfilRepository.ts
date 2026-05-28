@@ -1,20 +1,29 @@
 import {
-    deleteDoc,
-    doc,
-    getDoc,
-    serverTimestamp,
-    setDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 
 import Perfil, { PerfilDados } from "../models/Perfil";
-import { db } from "../utils/firebaseConfig";
+import { auth, db } from "../utils/firebaseConfig"; // 🌟 Importado o 'auth' aqui
 
 class PerfilRepository {
   private nomeColecao = "perfis";
-  private idPadrao = "perfil_demo";
+
+  // 🌟 FUNÇÃO AUXILIAR: Pega o ID do usuário logado dinamicamente
+  private getIdUsuario(): string {
+    const usuarioLogado = auth.currentUser;
+    if (!usuarioLogado) {
+      throw new Error("Usuário não autenticado no Firebase.");
+    }
+    return usuarioLogado.uid; // Retorna o UID real (ex: "g7Xy2...") em vez de "perfil_demo"
+  }
 
   async buscarPerfil(): Promise<Perfil | null> {
-    const perfilRef = doc(db, this.nomeColecao, this.idPadrao);
+    const idUsuario = this.getIdUsuario(); // 🌟 Dinâmico
+    const perfilRef = doc(db, this.nomeColecao, idUsuario);
     const resultado = await getDoc(perfilRef);
 
     if (!resultado.exists()) {
@@ -30,7 +39,8 @@ class PerfilRepository {
   }
 
   async salvar(perfil: Perfil): Promise<Perfil> {
-    const perfilRef = doc(db, this.nomeColecao, this.idPadrao);
+    const idUsuario = this.getIdUsuario(); // 🌟 Dinâmico
+    const perfilRef = doc(db, this.nomeColecao, idUsuario);
 
     await setDoc(
       perfilRef,
@@ -41,13 +51,14 @@ class PerfilRepository {
       { merge: true }
     );
 
-    perfil.id = this.idPadrao;
+    perfil.id = idUsuario;
 
     return perfil;
   }
 
   async excluir(): Promise<void> {
-    const perfilRef = doc(db, this.nomeColecao, this.idPadrao);
+    const idUsuario = this.getIdUsuario(); // 🌟 Dinâmico
+    const perfilRef = doc(db, this.nomeColecao, idUsuario);
 
     await deleteDoc(perfilRef);
   }

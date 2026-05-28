@@ -1,18 +1,53 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Perfil from "../../models/Perfil";
 
 interface PerfilCardProps {
   perfil: Perfil;
   onEditar: () => void;
   onExcluir: () => void;
+  onTrocarFoto: () => void; // Adicionado
+  carregandoFoto: boolean; // Adicionado
 }
 
-export default function PerfilCard({ perfil, onEditar, onExcluir }: PerfilCardProps) {
+export default function PerfilCard({ 
+  perfil, 
+  onEditar, 
+  onExcluir, 
+  onTrocarFoto, 
+  carregandoFoto 
+}: PerfilCardProps) {
+  
+  const fotoUrl = (perfil as any).photoUrl 
+    ? `${(perfil as any).photoUrl}?t=${new Date().getTime()}` 
+    : null;
+
   return (
     <View style={styles.card}>
-      <View style={styles.avatar}>
-        <Ionicons name="person-outline" size={42} color="#FF8500" />
+      
+      {/* 📸 UNIFICADO: A foto agora é clicável e tem a camerazinha acoplada */}
+      <View style={styles.avatarWrapper}>
+        <TouchableOpacity onPress={onTrocarFoto} disabled={carregandoFoto} activeOpacity={0.8}>
+          {fotoUrl ? (
+            <Image source={{ uri: fotoUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person-outline" size={42} color="#FF8500" />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cameraBadge}
+          onPress={onTrocarFoto}
+          disabled={carregandoFoto}
+        >
+          {carregandoFoto ? (
+            <ActivityIndicator size="small" color="#FF8500" />
+          ) : (
+            <Ionicons name="camera" size={16} color="#FF8500" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.name}>{perfil.nome}</Text>
@@ -62,14 +97,45 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     alignItems: "center",
   },
-  avatar: {
+  // 🎨 Engenharia do CSS para acoplar o botão flutuante da câmera perfeitamente
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 2,
+    borderColor: "#FF8500",
+  },
+  avatarPlaceholder: {
     width: 86,
     height: 86,
     borderRadius: 43,
     backgroundColor: "#FFF4E6",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#FF8500",
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    backgroundColor: "#FFFFFF",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   name: {
     fontSize: 22,
