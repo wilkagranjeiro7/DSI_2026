@@ -1,16 +1,19 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth"; // Escutador de sessão dinâmica
 import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 import { auth, db } from "../src/utils/firebaseConfig";
 
 // Paleta de cores oficial do FitMatch
@@ -26,8 +29,6 @@ const colors = {
   tabBg: "#FFFFFF",
 };
 
-// Componente reutilizável para os cards menores
-// Aqui já usamos TypeScript para definir as propriedades (props) que o card recebe
 function SmallCard({
   title,
   subtitle,
@@ -61,28 +62,80 @@ function SmallCard({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [userName, setUserName] = useState<string>(""); // Estado tipado como string
-  const [loadingName, setLoadingName] = useState<boolean>(true); // Estado tipado como boolean
+  const [userName, setUserName] = useState<string>(""); 
+  const [userPhoto, setUserPhoto] = useState<string | null>(null); // Armazena a foto do Supabase carregada do Firestore
+  const [loadingName, setLoadingName] = useState<boolean>(true); 
 
-  // Busca o nome de quem se cadastrou no Firestore
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const user = auth.currentUser;
+  // 📝 ESTADOS PARA O TOAST CARD (AVISO DISCRETO NA HOME)
+  const [toastVisivel, setToastVisivel] = useState(false);
+  const [toastMensagem, setToastMensagem] = useState("");
+
+  const mostrarAvisoDiscreto = (mensagem: string) => {
+    setToastMensagem(mensagem);
+    setToastVisivel(true);
+    setTimeout(() => {
+      setToastVisivel(false);
+    }, 2500);
+  };
+
+  // 🔥 Escutador dinâmico: Atualiza os dados toda vez que a tela ganha foco
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setUserName(userDoc.data().name); // Puxa o nome salvo no banco durante o cadastro
+          try {
+            // Tenta buscar no nó padrão de usuários
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            let nomeExibicao = user.displayName || "Usuário";
+            
+            if (userDoc.exists()) {
+              const dados = userDoc.data();
+              // 🔄 AJUSTE DE COMPATIBILIDADE: Verifica se o nome está em 'nome' (novo padrão) ou 'name' (antigo)
+              if (dados.nome) nomeExibicao = dados.nome;
+              else if (dados.name) nomeExibicao = dados.name;
+              
+              // Recarrega a foto quebrando o cache com o timestamp atualizado
+              if (dados.photoUrl) {
+                setUserPhoto(`${dados.photoUrl}?t=${new Date().getTime()}`);
+              } else {
+                setUserPhoto(null);
+              }
+            } else {
+              // Caso o amigo tenha mudado o nó principal para "perfis", faz o fallback de segurança
+              const perfilDoc = await getDoc(doc(db, "perfis", user.uid));
+              if (perfilDoc.exists()) {
+                const dadosPerfil = perfilDoc.data();
+                if (dadosPerfil.nome) nomeExibicao = dadosPerfil.nome;
+                if (dadosPerfil.photoUrl) setUserPhoto(`${dadosPerfil.photoUrl}?t=${new Date().getTime()}`);
+              }
+            }
+            setUserName(nomeExibicao);
+          } catch (error) {
+            console.error("Erro ao buscar dados dinâmicos do usuário:", error);
+          } finally {
+            setLoadingName(false);
           }
+        } else {
+          setLoadingName(false);
         }
-      } catch (error) {
-        console.error("Erro ao buscar dados do usuário:", error);
-      } finally {
-        setLoadingName(false);
-      }
-    };
-    fetchUserData();
-  }, []);
+      });
+
+      // Limpeza correta da inscrição ao perder o foco da tela
+      return () => unsubscribe();
+    }, [])
+  );
+
+  const handleSignOut = async () => {
+    try {
+      mostrarAvisoDiscreto("Saindo da conta... Até logo! 👋");
+      setTimeout(async () => {
+        await auth.signOut();
+        router.replace("/login");
+      }, 1000);
+    } catch (error) {
+      console.error("Erro ao sair:", error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -104,12 +157,7 @@ export default function HomeScreen() {
 
           <View style={styles.headerRight}>
             <Feather name="help-circle" size={20} color={colors.white} />
-            <TouchableOpacity
-              onPress={() => {
-                auth.signOut();
-                router.replace("/login");
-              }}
-            >
+            <TouchableOpacity onPress={handleSignOut}>
               <Feather
                 name="log-out"
                 size={20}
@@ -124,19 +172,27 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Área de saudação dinâmica - O avatar leva para o perfil */}
+          {/* Área de saudação dinâmica com foto real integrada */}
           <View style={styles.greetingRow}>
             <TouchableOpacity
-              style={styles.avatar}
               onPress={() => router.push("/perfil")}
               activeOpacity={0.8}
-            />
-            <View>
+            >
+              {userPhoto ? (
+                <Image source={{ uri: userPhoto }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: "#D8D8EE", alignItems: 'center', justifyContent: 'center' }]}>
+                  <Ionicons name="person" size={20} color={colors.textSoft} />
+                </View>
+              )}
+            </TouchableOpacity>
+            
+            <View style={{ marginLeft: 12 }}>
               {loadingName ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <Text style={styles.greetingTitle}>
-                  Olá, {userName || "Usuário"}!
+                  Olá, {userName}!
                 </Text>
               )}
               <Text style={styles.greetingSubtitle}>Bem vinda ao FitMatch</Text>
@@ -192,10 +248,10 @@ export default function HomeScreen() {
               }
             />
 
-            {/* CORREÇÃO AQUI: Bloco do card de metas limpo e com Feather */}
             <SmallCard
               title="Estabelecer metas"
               subtitle="Defina objetivos de treino"
+              onPress={() => router.push("/metas")} // 🔄 CORRIGIDO: Aponta para a nova tela de metas criada pelo seu colega
               icon={<Feather name="target" size={54} color={colors.primary} />}
             />
 
@@ -214,6 +270,7 @@ export default function HomeScreen() {
             <SmallCard
               title="Treinos favoritos"
               subtitle="Acesse rapidamente"
+              onPress={() => router.push("/meus-treinos")}
               icon={
                 <Ionicons
                   name="heart-outline"
@@ -225,53 +282,17 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Barra de navegação inferior integrada com espaçamento de segurança */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/home")}
-          >
-            <Ionicons name="home-outline" size={22} color={colors.primary} />
-            <Text style={[styles.tabText, { color: colors.primary }]}>
-              Início
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/meus-treinos")}
-          >
-            <MaterialCommunityIcons
-              name="arm-flex-outline"
-              size={22}
-              color={colors.text}
-            />
-            <Text style={styles.tabText}>Treinos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="list-outline" size={22} color={colors.text} />
-            <Text style={styles.tabText}>Metas</Text>
-          </TouchableOpacity>
-
-          {/* ✅ ROTA DO MAPA ATIVADA E APONTANDO PARA /map */}
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/map")} 
-          >
-            <Ionicons name="map-outline" size={22} color={colors.text} />
-            <Text style={styles.tabText}>Mapa</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => router.push("/perfil")}
-          >
-            <Ionicons name="person-outline" size={22} color={colors.text} />
-            <Text style={styles.tabText}>Perfil</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Barra de navegação inferior global */}
+        <BottomNavbar active="home" />
       </View>
+
+      {/* 🌟 COMPONENTE DO CARD DE AVISO DISCRETO (TOAST DA HOME) */}
+      {toastVisivel && (
+        <View style={styles.toastCard}>
+          <Ionicons name="information-circle" size={20} color={colors.primary} />
+          <Text style={styles.toastText}>{toastMensagem}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -295,7 +316,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 12,
   },
-  scrollContent: { padding: 16, paddingBottom: 110 }, // Aumentado um pouco para o conteúdo não sumir atrás da barra maior
+  scrollContent: { padding: 16, paddingBottom: 110 }, 
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -303,11 +324,11 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#D8D8EE",
-    marginRight: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   greetingTitle: { fontSize: 24, fontWeight: "700", color: colors.text },
   greetingSubtitle: { fontSize: 15, color: colors.textSoft, marginTop: 2 },
@@ -396,22 +417,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallCardSubtitle: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  
-  // 🛠️ SEÇÃO CORRIGIDA: Ajuste da barra inferior para descolar dos botões do celular
-  tabBar: {
+  toastCard: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 85, // Aumentado de 70 para 85 para dar espaço de respiro
-    backgroundColor: colors.tabBg,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    bottom: 100, 
+    left: 20,
+    right: 20,
+    backgroundColor: "#1E293B", 
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     flexDirection: "row",
-    justifyContent: "space-around",
     alignItems: "center",
-    paddingBottom: 18, // Empurra todo o bloco de ícones e textos para cima
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 9999,
   },
-  tabItem: { alignItems: "center", justifyContent: "center" },
-  tabText: { fontSize: 12, color: colors.text, marginTop: 2 },
+  toastText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 10,
+  },
 });

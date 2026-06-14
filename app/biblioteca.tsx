@@ -2,15 +2,16 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router"; // Alterado para a versão de classe (imperativa)
 import React, { Component } from "react";
 import {
-    FlatList,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 // Mantendo os filtros organizados por categorias gerais de treino
 const CATEGORIAS = [
@@ -221,6 +222,7 @@ export default class BibliotecaRoute extends Component<Props, State> {
                   />
                 </View>
 
+<<<<<<< HEAD
                 <View style={styles.actionButtonsRow}>
                   <TouchableOpacity
                     style={styles.btnOutline}
@@ -243,6 +245,30 @@ export default class BibliotecaRoute extends Component<Props, State> {
       </SafeAreaView>
     );
   }
+=======
+              <View style={styles.actionButtonsRow}>
+                <TouchableOpacity
+                  style={styles.btnOutline}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <Text style={styles.btnOutlineText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnOutline}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <Text style={styles.btnOutlineText}>Excluir</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      </View>
+      <BottomNavbar active="treinos" />
+    </SafeAreaView>
+  );
+>>>>>>> 5c2f1d7c368c68b33a5a7df6588c91c81e1f6db9
 }
 
 const styles = StyleSheet.create({

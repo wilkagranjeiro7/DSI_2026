@@ -1,18 +1,19 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import BottomNavbar from "../src/components/BottomNavbar";
 
 // Importações do Firebase
 import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -325,38 +326,8 @@ export default function MeusTreinosScreen() {
         />
       </View>
 
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/")}
-        >
-          <Ionicons name="home-outline" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Início</Text>
-        </TouchableOpacity>
+      <BottomNavbar active="treinos" />
 
-        <TouchableOpacity style={styles.tabItem}>
-          <MaterialCommunityIcons name="dumbbell" size={24} color="#F28C1B" />
-          <Text style={[styles.tabText, { color: "#F28C1B" }]}>Treinos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Feather name="target" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Metas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="map-outline" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Mapa</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/perfil")}
-        >
-          <Ionicons name="person-outline" size={24} color="#A0A0A0" />
-          <Text style={styles.tabText}>Perfil</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -456,17 +427,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#FFF3E0",
   },
-  exerciseText: { color: "#F28C1B", fontWeight: "600" },
-  bottomBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: "#FFF",
-  },
-  tabItem: { alignItems: "center" },
-  tabText: { fontSize: 12, color: "#A0A0A0", marginTop: 4 },
+  exerciseText: { color: "#F28C1B", fontWeight: "600" }
 });
