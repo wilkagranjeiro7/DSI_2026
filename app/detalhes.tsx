@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router"; // useRouter trocado para a importação direta
+import React, { Component } from "react";
 import {
     ActivityIndicator,
     SafeAreaView,
@@ -11,11 +11,9 @@ import {
     View,
 } from "react-native";
 // Importações do Firebase mantidas
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../src/utils/firebaseConfig";
-
-// NOVO: Importando a memória do celular
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // BIBLIOTECA COMPLETA DE TODOS OS EXERCÍCIOS
 const obterInstrucoesDetalhadas = (nome: string) => {
@@ -77,8 +75,8 @@ const obterInstrucoesDetalhadas = (nome: string) => {
   if (nomeLower.includes("alongamento de ombros")) {
     return {
       passos: [
-        "Estique o braço direito cruzando-o na frente do seu peito.",
-        "Use o braço esquerdo para puxar o braço esticado contra o seu corpo.",
+        "Estique o braço cruzando-o na frente do seu peito.",
+        "Use o outro braço para puxar o braço esticado contra o seu corpo.",
         "Mantenha o ombro abaixado, longe da orelha.",
         "Segure a posição e depois troque de lado.",
       ],
@@ -263,42 +261,77 @@ const obterInstrucoesDetalhadas = (nome: string) => {
   };
 };
 
-export default function DetalhesExercicioScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
+// Interfaces para a Classe
+interface Props {
+  params: any;
+}
 
-  const idExercicio = params.id as string; // Pegando o ID!
-  const nomeExercicio = (params.nome as string) || "Exercício";
-  const grupoMuscular = (params.grupo as string) || "Geral";
-  const instrucoesBase =
-    (params.instrucoes as string) ||
-    "Siga o passo a passo abaixo para a execução correta.";
-  const seriesFixas = (params.seriesRep as string) || "4 séries • 12 rep";
+interface State {
+  tempo: number;
+  ativo: boolean;
+  salvando: boolean;
+}
 
-  const detalhesDinamicos = obterInstrucoesDetalhadas(nomeExercicio);
+class DetalhesExercicioScreen extends Component<Props, State> {
+  intervalo: any = null;
 
-  const [tempo, setTempo] = useState<number>(60);
-  const [ativo, setAtivo] = useState<boolean>(false);
-  const [salvando, setSalvando] = useState<boolean>(false);
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      tempo: 60,
+      ativo: false,
+      salvando: false,
+    };
+  }
 
-  useEffect(() => {
-    let intervalo: any = null;
-    if (ativo && tempo > 0) {
-      intervalo = setInterval(() => {
-        setTempo((t) => t - 1);
-      }, 1000);
-    } else if (tempo === 0) {
-      setAtivo(false);
-      clearInterval(intervalo);
+  // Substitui o Hook useEffect para gerenciar o cronômetro
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    const { ativo, tempo } = this.state;
+
+    // Quando o usuário pausa ou inicia o cronômetro
+    if (ativo !== prevState.ativo) {
+      if (ativo && tempo > 0) {
+        this.iniciarIntervalo();
+      } else {
+        this.limparIntervalo();
+      }
     }
-    return () => clearInterval(intervalo);
-  }, [ativo, tempo]);
 
-  const handleConcluirExercicio = async () => {
+    // Quando o tempo chega a zero
+    if (tempo === 0 && prevState.tempo !== 0) {
+      this.setState({ ativo: false });
+      this.limparIntervalo();
+    }
+  }
+
+  // Limpa o cronômetro se o usuário sair da tela com ele rodando
+  componentWillUnmount() {
+    this.limparIntervalo();
+  }
+
+  iniciarIntervalo = () => {
+    this.limparIntervalo(); // Garante que não haja timers duplicados
+    this.intervalo = setInterval(() => {
+      this.setState((prevState) => ({ tempo: prevState.tempo - 1 }));
+    }, 1000);
+  };
+
+  limparIntervalo = () => {
+    if (this.intervalo) {
+      clearInterval(this.intervalo);
+      this.intervalo = null;
+    }
+  };
+
+  handleConcluirExercicio = async () => {
+    const { params } = this.props;
+    const idExercicio = params.id as string;
+    const nomeExercicio = (params.nome as string) || "Exercício";
+
     try {
-      setSalvando(true);
+      this.setState({ salvando: true });
 
-      // NOVO: Salvando na memória do celular que esse exercício foi feito
+      // Salvando na memória do celular que esse exercício foi feito
       if (idExercicio) {
         const concluidosSalvos = await AsyncStorage.getItem(
           "exerciciosConcluidos",
@@ -338,117 +371,152 @@ export default function DetalhesExercicioScreen() {
       console.error("Erro ao salvar conclusão do exercício:", error);
       alert("Erro ao salvar: " + error.message);
     } finally {
-      setSalvando(false);
+      this.setState({ salvando: false });
     }
   };
 
-  const formatarTempo = (segundos: number): string => {
+  formatarTempo = (segundos: number): string => {
     const mins = Math.floor(segundos / 60);
     const segs = segundos % 60;
     return `${mins}:${segs < 10 ? "0" : ""}${segs}`;
   };
 
-  const aumentarTempo = () => setTempo((t) => t + 15);
-  const diminuirTempo = () => setTempo((t) => (t - 15 < 0 ? 0 : t - 15));
+  aumentarTempo = () => {
+    this.setState((prevState) => ({ tempo: prevState.tempo + 15 }));
+  };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerLaranja}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalhes do exercício</Text>
-        <View style={{ width: 24 }} />
-      </View>
+  diminuirTempo = () => {
+    this.setState((prevState) => ({
+      tempo: prevState.tempo - 15 < 0 ? 0 : prevState.tempo - 15,
+    }));
+  };
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.bigHalterContainer}>
-          <View style={styles.bigHalterBox}>
-            <MaterialCommunityIcons name="dumbbell" size={64} color="#FFF" />
-          </View>
-          <Text style={styles.exerciseNameText}>{nomeExercicio}</Text>
-          <Text style={styles.exerciseGroupText}>{grupoMuscular}</Text>
+  render() {
+    const { params } = this.props;
+    const { tempo, ativo, salvando } = this.state;
+
+    const nomeExercicio = (params.nome as string) || "Exercício";
+    const grupoMuscular = (params.grupo as string) || "Geral";
+    const instrucoesBase =
+      (params.instrucoes as string) ||
+      "Siga o passo a passo abaixo para a execução correta.";
+    const seriesFixas = (params.seriesRep as string) || "4 séries • 12 rep";
+
+    const detalhesDinamicos = obterInstrucoesDetalhadas(nomeExercicio);
+
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.headerLaranja}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalhes do exercício</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Ionicons name="layers-outline" size={20} color="#F28C1B" />
-            <Text style={styles.statValue}>{seriesFixas.split("•")[0]}</Text>
-            <Text style={styles.statLabel}>Séries</Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.bigHalterContainer}>
+            <View style={styles.bigHalterBox}>
+              <MaterialCommunityIcons name="dumbbell" size={64} color="#FFF" />
+            </View>
+            <Text style={styles.exerciseNameText}>{nomeExercicio}</Text>
+            <Text style={styles.exerciseGroupText}>{grupoMuscular}</Text>
           </View>
 
-          <View style={styles.statItemTimer}>
-            <View style={styles.timerControlesRow}>
-              <TouchableOpacity onPress={diminuirTempo}>
-                <Ionicons
-                  name="remove-circle-outline"
-                  size={24}
-                  color="#F28C1B"
-                />
-              </TouchableOpacity>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Ionicons name="layers-outline" size={20} color="#F28C1B" />
+              <Text style={styles.statValue}>{seriesFixas.split("•")[0]}</Text>
+              <Text style={styles.statLabel}>Séries</Text>
+            </View>
 
-              <TouchableOpacity
-                onPress={() => setAtivo(!ativo)}
-                onLongPress={() => {
-                  setAtivo(false);
-                  setTempo(60);
-                }}
-                delayLongPress={400}
-                style={[styles.timerCirculo, ativo && styles.timerCirculoAtivo]}
-              >
-                <Text
-                  style={[styles.timerTexto, ativo && styles.timerTextoAtivo]}
+            <View style={styles.statItemTimer}>
+              <View style={styles.timerControlesRow}>
+                <TouchableOpacity onPress={this.diminuirTempo}>
+                  <Ionicons
+                    name="remove-circle-outline"
+                    size={24}
+                    color="#F28C1B"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => this.setState({ ativo: !ativo })}
+                  onLongPress={() => {
+                    this.setState({ ativo: false, tempo: 60 });
+                  }}
+                  delayLongPress={400}
+                  style={[
+                    styles.timerCirculo,
+                    ativo && styles.timerCirculoAtivo,
+                  ]}
                 >
-                  {formatarTempo(tempo)}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[styles.timerTexto, ativo && styles.timerTextoAtivo]}
+                  >
+                    {this.formatarTempo(tempo)}
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity onPress={aumentarTempo}>
-                <Ionicons name="add-circle-outline" size={24} color="#F28C1B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.statLabel}>Descanso</Text>
-          </View>
-
-          <View style={styles.statItem}>
-            <Ionicons name="repeat-outline" size={20} color="#F28C1B" />
-            <Text style={styles.statValue}>{seriesFixas.split("•")[1]}</Text>
-            <Text style={styles.statLabel}>Reps</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Descrição</Text>
-          <Text style={styles.descriptionText}>{instrucoesBase}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Execução passo a passo</Text>
-          {detalhesDinamicos.passos.map((passo, index) => (
-            <View key={index} style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
+                <TouchableOpacity onPress={this.aumentarTempo}>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={24}
+                    color="#F28C1B"
+                  />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.stepText}>{passo}</Text>
+              <Text style={styles.statLabel}>Descanso</Text>
             </View>
-          ))}
-        </View>
 
-        <TouchableOpacity
-          style={[styles.btnAction, salvando && { opacity: 0.7 }]}
-          onPress={handleConcluirExercicio}
-          disabled={salvando}
-        >
-          {salvando ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.btnActionText}>Concluir este Exercício 💪</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
-  );
+            <View style={styles.statItem}>
+              <Ionicons name="repeat-outline" size={20} color="#F28C1B" />
+              <Text style={styles.statValue}>{seriesFixas.split("•")[1]}</Text>
+              <Text style={styles.statLabel}>Reps</Text>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Descrição</Text>
+            <Text style={styles.descriptionText}>{instrucoesBase}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Execução passo a passo</Text>
+            {detalhesDinamicos.passos.map((passo, index) => (
+              <View key={index} style={styles.stepRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.stepText}>{passo}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.btnAction, salvando && { opacity: 0.7 }]}
+            onPress={this.handleConcluirExercicio}
+            disabled={salvando}
+          >
+            {salvando ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={styles.btnActionText}>
+                Concluir este Exercício 💪
+              </Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+}
+
+// Invólucro obrigatório para conectar o Hook de parâmetros do Expo com a nossa Classe POO
+export default function DetalhesExercicioScreenWrapper() {
+  const params = useLocalSearchParams();
+  return <DetalhesExercicioScreen params={params} />;
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { router } from "expo-router"; // Alterado para a versão de classe (imperativa)
+import React, { Component } from "react";
 import {
     FlatList,
     SafeAreaView,
@@ -67,12 +67,36 @@ const TREINOS = [
   },
 ];
 
-export default function BibliotecaRoute() {
-  const [categoriaAtiva, setCategoriaAtiva] = useState("Todos");
-  const [busca, setBusca] = useState("");
-  const router = useRouter();
+// Interfaces para o TypeScript na Classe
+interface Props {}
 
-  const treinosFiltrados = useMemo(() => {
+interface State {
+  categoriaAtiva: string;
+  busca: string;
+}
+
+export default class BibliotecaRoute extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    // Inicialização do estado na POO
+    this.state = {
+      categoriaAtiva: "Todos",
+      busca: "",
+    };
+  }
+
+  // Métodos para atualizar o estado
+  setCategoriaAtiva = (categoria: string): void => {
+    this.setState({ categoriaAtiva: categoria });
+  };
+
+  setBusca = (texto: string): void => {
+    this.setState({ busca: texto });
+  };
+
+  // Substitui o useMemo, calculando os treinos filtrados
+  get treinosFiltrados() {
+    const { categoriaAtiva, busca } = this.state;
     return TREINOS.filter((treino) => {
       const correspondeCategoria =
         categoriaAtiva === "Todos" || treino.categoria === categoriaAtiva;
@@ -81,140 +105,144 @@ export default function BibliotecaRoute() {
         .includes(busca.toLowerCase());
       return correspondeCategoria && correspondeBusca;
     });
-  }, [categoriaAtiva, busca]);
+  }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Superior */}
-      <View style={styles.headerLaranja}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.logoText}>FitMatch</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+  render() {
+    const { categoriaAtiva, busca } = this.state;
 
-      <View style={styles.content}>
-        {/* Cabeçalho da Lista */}
-        <View style={styles.titleContainer}>
-          <View>
-            <Text style={styles.mainTitle}>Meus treinos</Text>
-            <Text style={styles.subTitleHeader}>
-              Gerencie seus planos de treino
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.btnNovoTreino}
-            onPress={() => router.push("/criar-treino")}
-          >
-            <Text style={styles.btnNovoTreinoText}>+ Novo treino</Text>
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Header Superior */}
+        <View style={styles.headerLaranja}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.logoText}>FitMatch</Text>
+          <TouchableOpacity>
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
 
-        {/* Caixa de Busca */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#A0A0A0" />
-          <TextInput
-            placeholder="Buscar treino"
-            placeholderTextColor="#A0A0A0"
-            style={styles.input}
-            value={busca}
-            onChangeText={setBusca}
-          />
-        </View>
+        <View style={styles.content}>
+          {/* Cabeçalho da Lista */}
+          <View style={styles.titleContainer}>
+            <View>
+              <Text style={styles.mainTitle}>Meus treinos</Text>
+              <Text style={styles.subTitleHeader}>
+                Gerencie seus planos de treino
+              </Text>
+            </View>
 
-        {/* Filtros em Pílula */}
-        <View style={styles.filterWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIAS.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setCategoriaAtiva(cat)}
-                style={[
-                  styles.filterTab,
-                  categoriaAtiva === cat && styles.filterTabActive,
-                ]}
-              >
-                <Text
+            <TouchableOpacity
+              style={styles.btnNovoTreino}
+              onPress={() => router.push("/criar-treino")}
+            >
+              <Text style={styles.btnNovoTreinoText}>+ Novo treino</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Caixa de Busca */}
+          <View style={styles.searchBox}>
+            <Ionicons name="search-outline" size={20} color="#A0A0A0" />
+            <TextInput
+              placeholder="Buscar treino"
+              placeholderTextColor="#A0A0A0"
+              style={styles.input}
+              value={busca}
+              onChangeText={this.setBusca}
+            />
+          </View>
+
+          {/* Filtros em Pílula */}
+          <View style={styles.filterWrapper}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {CATEGORIAS.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => this.setCategoriaAtiva(cat)}
                   style={[
-                    styles.filterText,
-                    categoriaAtiva === cat && styles.filterTextActive,
+                    styles.filterTab,
+                    categoriaAtiva === cat && styles.filterTabActive,
                   ]}
                 >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+                  <Text
+                    style={[
+                      styles.filterText,
+                      categoriaAtiva === cat && styles.filterTextActive,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
-        {/* Lista de Cards */}
-        <FlatList
-          data={treinosFiltrados}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.cardFigma}
-              activeOpacity={0.7}
-              onPress={() => {
-                // Passa a categoria do treino para a tela de exercícios filtrar automaticamente
-                router.push({
-                  pathname: "/meus-exercicios",
-                  params: {
-                    treinoSelecionado: item.nome,
-                    categoriaTreino: item.categoria,
-                  },
-                });
-              }}
-            >
-              <View style={styles.cardInfoContainer}>
-                <View style={styles.iconWrapper}>
-                  <MaterialCommunityIcons
-                    name="dumbbell"
-                    size={24}
-                    color="#F28C1B"
+          {/* Lista de Cards */}
+          <FlatList
+            data={this.treinosFiltrados}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.cardFigma}
+                activeOpacity={0.7}
+                onPress={() => {
+                  // Passa a categoria do treino para a tela de exercícios filtrar automaticamente
+                  router.push({
+                    pathname: "/meus-exercicios",
+                    params: {
+                      treinoSelecionado: item.nome,
+                      categoriaTreino: item.categoria,
+                    },
+                  });
+                }}
+              >
+                <View style={styles.cardInfoContainer}>
+                  <View style={styles.iconWrapper}>
+                    <MaterialCommunityIcons
+                      name="dumbbell"
+                      size={24}
+                      color="#F28C1B"
+                    />
+                  </View>
+                  <View style={styles.textContainer}>
+                    <Text style={styles.workoutTitle}>{item.nome}</Text>
+                    <Text style={styles.workoutSub}>{item.divisao}</Text>
+                    <Text style={styles.workoutSpecs}>
+                      {item.duracao} • {item.dias}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="#C0C0C0"
+                    style={{ alignSelf: "center" }}
                   />
                 </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.workoutTitle}>{item.nome}</Text>
-                  <Text style={styles.workoutSub}>{item.divisao}</Text>
-                  <Text style={styles.workoutSpecs}>
-                    {item.duracao} • {item.dias}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color="#C0C0C0"
-                  style={{ alignSelf: "center" }}
-                />
-              </View>
 
-              <View style={styles.actionButtonsRow}>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Excluir</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </View>
-    </SafeAreaView>
-  );
+                <View style={styles.actionButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.btnOutline}
+                    onPress={(e) => e.stopPropagation()}
+                  >
+                    <Text style={styles.btnOutlineText}>Editar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.btnOutline}
+                    onPress={(e) => e.stopPropagation()}
+                  >
+                    <Text style={styles.btnOutlineText}>Excluir</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
