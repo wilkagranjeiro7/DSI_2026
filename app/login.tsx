@@ -1,14 +1,14 @@
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { Component } from "react";
 import {
-  Alert,
-  Image,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // --- IMPORTAÇÕES DO FIREBASE ---
@@ -22,27 +22,44 @@ interface TentativaLogin {
   data: string;
 }
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState<string>("");
-  const [senha, setSenha] = useState<string>("");
+// Interfaces de Propriedades e Estado para a Classe
+interface Props {}
 
-  const [erroEmail, setErroEmail] = useState<string>("");
-  const [erroSenha, setErroSenha] = useState<string>("");
+interface State {
+  email: string;
+  senha: string;
+  erroEmail: string;
+  erroSenha: string;
+}
 
-  const handleEmailChange = (texto: string): void => {
-    setEmail(texto);
-    if (erroEmail) setErroEmail("");
+export default class LoginScreen extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    // Inicialização do estado na POO
+    this.state = {
+      email: "",
+      senha: "",
+      erroEmail: "",
+      erroSenha: "",
+    };
+  }
+
+  handleEmailChange = (texto: string): void => {
+    this.setState({ email: texto });
+    if (this.state.erroEmail) {
+      this.setState({ erroEmail: "" });
+    }
   };
 
-  const handleSenhaChange = (texto: string): void => {
-    setSenha(texto);
-    if (erroSenha) setErroSenha("");
+  handleSenhaChange = (texto: string): void => {
+    this.setState({ senha: texto });
+    if (this.state.erroSenha) {
+      this.setState({ erroSenha: "" });
+    }
   };
 
   // --- FUNÇÃO PARA SALVAR NO FIREBASE ---
-  const salvarNoFirebase = async (
-    novaTentativa: TentativaLogin,
-  ): Promise<void> => {
+  salvarNoFirebase = async (novaTentativa: TentativaLogin): Promise<void> => {
     try {
       await addDoc(collection(db, "usuarios"), novaTentativa);
       console.log("Dados enviados para o Firebase com sucesso!");
@@ -52,37 +69,40 @@ export default function LoginScreen() {
     }
   };
 
-  const validarFormulario = (): boolean => {
+  validarFormulario = (): boolean => {
     let valido = true;
+    const { email, senha } = this.state;
+    let novoErroEmail = "";
+    let novoErroSenha = "";
 
     // Validação do Email
     if (email.trim() === "") {
-      setErroEmail("O e-mail é obrigatório");
+      novoErroEmail = "O e-mail é obrigatório";
       valido = false;
     } else if (!email.includes("@") || !email.includes(".com")) {
-      setErroEmail("E-mail inválido (use @ e .com)");
+      novoErroEmail = "E-mail inválido (use @ e .com)";
       valido = false;
-    } else {
-      setErroEmail("");
     }
 
     // --- SENHA CORRIGIDA PARA FICAR IGUAL AO SIGNUP ---
-    // Agora só verifica se está vazio ou se tem menos de 6 caracteres
     if (senha.trim() === "") {
-      setErroSenha("A senha é obrigatória");
+      novoErroSenha = "A senha é obrigatória";
       valido = false;
     } else if (senha.length < 6) {
-      setErroSenha("A senha deve ter pelo menos 6 caracteres");
+      novoErroSenha = "A senha deve ter pelo menos 6 caracteres";
       valido = false;
-    } else {
-      setErroSenha("");
     }
+
+    // Atualiza os erros de uma só vez no estado
+    this.setState({ erroEmail: novoErroEmail, erroSenha: novoErroSenha });
 
     return valido;
   };
 
-  const handleAcessar = async (): Promise<void> => {
-    if (!validarFormulario()) return;
+  handleAcessar = async (): Promise<void> => {
+    if (!this.validarFormulario()) return;
+
+    const { email, senha } = this.state;
 
     const novaTentativa: TentativaLogin = {
       email: email,
@@ -91,79 +111,86 @@ export default function LoginScreen() {
     };
 
     try {
-      await salvarNoFirebase(novaTentativa);
+      await this.salvarNoFirebase(novaTentativa);
       Alert.alert("Sucesso", "Login realizado com sucesso!");
-      setEmail("");
-      setSenha("");
+      this.setState({ email: "", senha: "" });
       router.replace("/home");
     } catch (error) {
       Alert.alert("Erro", "Falha ao conectar com o banco de dados.");
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerTop}>
-        <Text style={styles.headerTitle}>FitMatch</Text>
-      </View>
+  render() {
+    // Desestruturação do estado para facilitar o uso no JSX
+    const { email, senha, erroEmail, erroSenha } = this.state;
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Image
-            source={require("../assets/images/logo.png")}
-            style={styles.logo}
-          />
-          <Text style={styles.brandText}>
-            Fit<Text style={styles.brandMatch}>Match</Text>
-          </Text>
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>FitMatch</Text>
         </View>
 
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.title}>Seja bem vindo</Text>
-          <Text style={styles.subtitle}>Efetue seu login</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, erroEmail ? styles.inputErro : null]}
-              placeholder="Digite seu email"
-              value={email}
-              onChangeText={handleEmailChange}
-              autoCapitalize="none"
-              keyboardType="email-address"
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Image
+              source={require("../assets/images/logo.png")}
+              style={styles.logo}
             />
-            {erroEmail ? (
-              <Text style={styles.errorText}>{erroEmail}</Text>
-            ) : null}
+            <Text style={styles.brandText}>
+              Fit<Text style={styles.brandMatch}>Match</Text>
+            </Text>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Senha</Text>
-            <TextInput
-              style={[styles.input, erroSenha ? styles.inputErro : null]}
-              placeholder="Digite sua senha"
-              secureTextEntry
-              value={senha}
-              onChangeText={handleSenhaChange}
-            />
-            {erroSenha ? (
-              <Text style={styles.errorText}>{erroSenha}</Text>
-            ) : null}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.title}>Seja bem vindo</Text>
+            <Text style={styles.subtitle}>Efetue seu login</Text>
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleAcessar}>
-            <Text style={styles.buttonText}>Acessar</Text>
-          </TouchableOpacity>
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={[styles.input, erroEmail ? styles.inputErro : null]}
+                placeholder="Digite seu email"
+                value={email}
+                onChangeText={this.handleEmailChange}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              {erroEmail ? (
+                <Text style={styles.errorText}>{erroEmail}</Text>
+              ) : null}
+            </View>
 
-          <TouchableOpacity style={styles.forgotContainer}>
-            <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
-          </TouchableOpacity>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Senha</Text>
+              <TextInput
+                style={[styles.input, erroSenha ? styles.inputErro : null]}
+                placeholder="Digite sua senha"
+                secureTextEntry
+                value={senha}
+                onChangeText={this.handleSenhaChange}
+              />
+              {erroSenha ? (
+                <Text style={styles.errorText}>{erroSenha}</Text>
+              ) : null}
+            </View>
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={this.handleAcessar}
+            >
+              <Text style={styles.buttonText}>Acessar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.forgotContainer}>
+              <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
-  );
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
