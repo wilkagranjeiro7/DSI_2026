@@ -1,25 +1,18 @@
-<<<<<<< HEAD
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { Component } from "react";
-=======
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
->>>>>>> 5c2f1d7c368c68b33a5a7df6588c91c81e1f6db9
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import BottomNavbar from "../src/components/BottomNavbar";
 
 // Importações do Firebase
 import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
@@ -296,7 +289,6 @@ class CriarTreinoScreen extends Component<Props, State> {
               </Text>
             </TouchableOpacity>
 
-<<<<<<< HEAD
             <TouchableOpacity style={styles.tabItem}>
               <Feather name="target" size={24} color={colors.textSoft} />
               <Text style={styles.tabText}>Metas</Text>
@@ -329,14 +321,6 @@ class CriarTreinoScreen extends Component<Props, State> {
 export default function CriarTreinoScreenWrapper() {
   const params = useLocalSearchParams();
   return <CriarTreinoScreen params={params} />;
-=======
-        {/* BARRA DE NAVEGAÇÃO INFERIOR */}
-        <BottomNavbar active="treinos" />
-        
-      </View>
-    </SafeAreaView>
-  );
->>>>>>> 5c2f1d7c368c68b33a5a7df6588c91c81e1f6db9
 }
 
 const styles = StyleSheet.create({

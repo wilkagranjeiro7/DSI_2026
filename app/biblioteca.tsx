@@ -222,7 +222,6 @@ export default class BibliotecaRoute extends Component<Props, State> {
                   />
                 </View>
 
-<<<<<<< HEAD
                 <View style={styles.actionButtonsRow}>
                   <TouchableOpacity
                     style={styles.btnOutline}
@@ -245,30 +244,6 @@ export default class BibliotecaRoute extends Component<Props, State> {
       </SafeAreaView>
     );
   }
-=======
-              <View style={styles.actionButtonsRow}>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Excluir</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </View>
-      <BottomNavbar active="treinos" />
-    </SafeAreaView>
-  );
->>>>>>> 5c2f1d7c368c68b33a5a7df6588c91c81e1f6db9
 }
 
 const styles = StyleSheet.create({
