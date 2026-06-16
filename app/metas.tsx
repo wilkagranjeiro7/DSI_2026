@@ -1,52 +1,61 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import React, { Component } from "react";
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
-
 import MetaCard from "../src/components/metas/MetaCard";
 import Meta from "../src/models/Meta";
 import MetaService from "../src/services/MetaService";
 
-export default function MetasScreen() {
-  const metaService = useMemo(() => new MetaService(), []);
+interface MetasState {
+  metas: Meta[];
+  carregando: boolean;
+  erro: string;
+}
 
-  const [metas, setMetas] = useState<Meta[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState("");
+export default class MetasScreen extends Component<object, MetasState> {
+  private readonly metaService = new MetaService();
 
-  async function carregarMetas() {
+  state: MetasState = {
+    metas: [],
+    carregando: true,
+    erro: "",
+  };
+
+  componentDidMount() {
+    this.carregarMetas();
+  }
+
+  private carregarMetas = async () => {
     try {
-      setCarregando(true);
+      this.setState({ carregando: true });
 
-      const lista = await metaService.listarMetas();
+      const lista = await this.metaService.listarMetas();
 
-      setMetas(lista);
-      setErro("");
+      this.setState({ metas: lista, erro: "" });
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao carregar metas.");
+      this.setState({
+        erro:
+          error instanceof Error ? error.message : "Erro ao carregar metas.",
+      });
     } finally {
-      setCarregando(false);
+      this.setState({ carregando: false });
     }
-  }
+  };
 
-  useEffect(() => {
-    carregarMetas();
-  }, []);
-
-  function abrirNovaMeta() {
+  private abrirNovaMeta = () => {
     router.push("/meta-form");
-  }
+  };
 
-  function editarMeta(meta: Meta) {
+  private editarMeta = (meta: Meta) => {
     if (!meta.id) {
       return;
     }
@@ -55,89 +64,112 @@ export default function MetasScreen() {
       pathname: "/meta-form",
       params: { id: meta.id },
     });
-  }
+  };
 
-  function confirmarExclusao(id: string) {
+  private confirmarExclusao = (id: string) => {
     Alert.alert("Excluir meta", "Tem certeza que deseja excluir esta meta?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Excluir",
         style: "destructive",
-        onPress: () => excluirMeta(id),
+        onPress: () => this.excluirMeta(id),
       },
     ]);
-  }
+  };
 
-  async function excluirMeta(id: string) {
+  private excluirMeta = async (id: string) => {
     try {
-      await metaService.excluirMeta(id);
-      await carregarMetas();
+      await this.metaService.excluirMeta(id);
+      await this.carregarMetas();
     } catch (error) {
-      Alert.alert("Erro", error instanceof Error ? error.message : "Erro ao excluir meta.");
+      Alert.alert(
+        "Erro",
+        error instanceof Error ? error.message : "Erro ao excluir meta.",
+      );
     }
-  }
+  };
 
-  async function concluirMeta(id: string) {
+  private concluirMeta = async (id: string) => {
     try {
-      await metaService.concluirMeta(id);
-      await carregarMetas();
+      await this.metaService.concluirMeta(id);
+      await this.carregarMetas();
     } catch (error) {
-      Alert.alert("Erro", error instanceof Error ? error.message : "Erro ao concluir meta.");
+      Alert.alert(
+        "Erro",
+        error instanceof Error ? error.message : "Erro ao concluir meta.",
+      );
     }
-  }
+  };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+  private renderConteudo() {
+    const { metas, carregando, erro } = this.state;
 
-          <Text style={styles.headerTitle}>FitMatch</Text>
+    if (carregando) {
+      return <Text style={styles.feedback}>Carregando metas...</Text>;
+    }
 
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
+    if (metas.length === 0) {
+      return (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>Nenhuma meta cadastrada</Text>
+          <Text style={styles.emptyText}>
+            Toque em "+ Nova meta" para criar sua primeira meta.
+          </Text>
         </View>
+      );
+    }
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.titleRow}>
-            <View>
-              <Text style={styles.title}>Minhas metas</Text>
-              <Text style={styles.subtitle}>Acompanhe seu progresso</Text>
-            </View>
+    return metas.map((meta) => (
+      <MetaCard
+        key={meta.id}
+        meta={meta}
+        onEditar={this.editarMeta}
+        onExcluir={this.confirmarExclusao}
+        onConcluir={this.concluirMeta}
+      />
+    ));
+  }
 
-            <TouchableOpacity style={styles.newButton} onPress={abrirNovaMeta}>
-              <Text style={styles.newButtonText}>+ Nova meta</Text>
+  render() {
+    const { erro } = this.state;
+
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
+
+            <Text style={styles.headerTitle}>FitMatch</Text>
+
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
           </View>
 
-          {erro ? <Text style={styles.error}>{erro}</Text> : null}
+          <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.titleRow}>
+              <View>
+                <Text style={styles.title}>Minhas metas</Text>
+                <Text style={styles.subtitle}>Acompanhe seu progresso</Text>
+              </View>
 
-          {carregando ? (
-            <Text style={styles.feedback}>Carregando metas...</Text>
-          ) : metas.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Nenhuma meta cadastrada</Text>
-              <Text style={styles.emptyText}>Toque em “+ Nova meta” para criar sua primeira meta.</Text>
+              <TouchableOpacity
+                style={styles.newButton}
+                onPress={this.abrirNovaMeta}
+              >
+                <Text style={styles.newButtonText}>+ Nova meta</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            metas.map((meta) => (
-              <MetaCard
-                key={meta.id}
-                meta={meta}
-                onEditar={editarMeta}
-                onExcluir={confirmarExclusao}
-                onConcluir={concluirMeta}
-              />
-            ))
-          )}
-        </ScrollView>
 
-        <BottomNavbar active="metas" />
-        
-      </View>
-    </SafeAreaView>
-  );
+            {erro ? <Text style={styles.error}>{erro}</Text> : null}
+            {this.renderConteudo()}
+          </ScrollView>
+
+          <BottomNavbar active="metas" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -222,5 +254,5 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#6B7280",
     marginTop: 6,
-  }
+  },
 });
