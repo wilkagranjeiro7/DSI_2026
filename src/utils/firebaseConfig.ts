@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage"; // Importamos o AsyncStorage
 import { initializeApp } from "firebase/app";
 import { getReactNativePersistence, initializeAuth } from "firebase/auth"; // Mudamos aqui!
@@ -61,3 +62,24 @@ export const app = firebaseClient.app;
 export const auth = firebaseClient.auth;
 export const db = firebaseClient.db;
 export default firebaseClient;
+=======
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAoeDdAknSzJyXZ2D-qGzRFVnUPne-6uaI",
+  authDomain: "fitmatch-dsi.firebaseapp.com",
+  projectId: "fitmatch-dsi",
+  storageBucket: "fitmatch-dsi.firebasestorage.app",
+  messagingSenderId: "320194100054",
+  appId: "1:320194100054:web:e4bb5f55c08861a4c0b4f7",
+  measurementId: "G-919M9V2FVR",
+};
+
+// Lógica para não inicializar o Firebase duas vezes
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+>>>>>>> Stashed changes

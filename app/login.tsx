@@ -1,5 +1,10 @@
+<<<<<<< Updated upstream
 import { router } from "expo-router";
 import React, { Component } from "react";
+=======
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+>>>>>>> Stashed changes
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +18,7 @@ import {
 } from "react-native";
 import AuthService from "../src/services/AuthService";
 
+<<<<<<< Updated upstream
 interface LoginState {
   email: string;
   senha: string;
@@ -23,11 +29,22 @@ interface LoginState {
 
 class LoginValidator {
   constructor(private readonly email: string, private readonly senha: string) {}
+=======
+// --- IMPORTAÇÕES DO FIREBASE ---
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../src/utils/firebaseConfig";
+
+export default function LoginScreen() {
+  const [email, setEmail] = useState<string>("");
+  const [senha, setSenha] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+>>>>>>> Stashed changes
 
   validate() {
     let erroEmail = "";
     let erroSenha = "";
 
+<<<<<<< Updated upstream
     if (this.email.trim() === "") {
       erroEmail = "O e-mail e obrigatorio";
     } else if (!this.email.includes("@") || !this.email.includes(".")) {
@@ -91,6 +108,55 @@ export default class LoginScreen extends Component<object, LoginState> {
       );
     } finally {
       this.setState({ loading: false });
+=======
+  const router = useRouter();
+
+  const handleEmailChange = (texto: string): void => {
+    setEmail(texto);
+    if (erroEmail) setErroEmail("");
+  };
+
+  const handleSenhaChange = (texto: string): void => {
+    setSenha(texto);
+    if (erroSenha) setErroSenha("");
+  };
+
+  const validarFormulario = (): boolean => {
+    let valido = true;
+
+    if (email.trim() === "") {
+      setErroEmail("O e-mail é obrigatório");
+      valido = false;
+    } else if (!email.includes("@") || !email.includes(".com")) {
+      setErroEmail("E-mail inválido (use @ e .com)");
+      valido = false;
+    }
+
+    if (senha.trim() === "") {
+      setErroSenha("A senha é obrigatória");
+      valido = false;
+    } else if (senha.length < 6) {
+      setErroSenha("A senha deve ter pelo menos 6 caracteres");
+      valido = false;
+    }
+
+    return valido;
+  };
+
+  const handleAcessar = async (): Promise<void> => {
+    if (!validarFormulario()) return;
+
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), senha);
+      Alert.alert("Sucesso", "Bem-vindo ao FitMatch!");
+      // router.push("/home"); // Descomente quando a Home estiver pronta
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("Erro", "E-mail ou senha incorretos.");
+    } finally {
+      setLoading(false);
+>>>>>>> Stashed changes
     }
   };
 
@@ -119,6 +185,7 @@ export default class LoginScreen extends Component<object, LoginState> {
             <Text style={styles.subtitle}>Efetue seu login</Text>
           </View>
 
+<<<<<<< Updated upstream
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
@@ -167,6 +234,30 @@ export default class LoginScreen extends Component<object, LoginState> {
               <Text style={styles.forgotText}>Nao tem conta? Cadastre-se</Text>
             </TouchableOpacity>
           </View>
+=======
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAcessar}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Acessar</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>Não tem uma conta? </Text>
+            <TouchableOpacity onPress={() => router.push("/signup")}>
+              <Text style={styles.linkText}>Cadastre-se</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.forgotContainer}>
+            <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
+          </TouchableOpacity>
+>>>>>>> Stashed changes
         </View>
       </SafeAreaView>
     );
@@ -220,6 +311,19 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   buttonText: { color: "white", fontSize: 18, fontWeight: "bold" },
-  forgotContainer: { marginTop: 20, alignItems: "center" },
+  footerContainer: {
+    flexDirection: "row",
+    marginTop: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footerText: { color: "#888", fontSize: 14 },
+  linkText: {
+    color: "#007BFF",
+    fontSize: 14,
+    fontWeight: "bold",
+    textDecorationLine: "underline",
+  },
+  forgotContainer: { marginTop: 15, alignItems: "center" },
   forgotText: { color: "#888", fontSize: 14 },
 });
