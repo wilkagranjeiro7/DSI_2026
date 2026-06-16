@@ -1,5 +1,8 @@
-import SignUpScreen from "./signup"; 
+import React, { Component } from "react";
+import SignUpScreen from "./signup";
 
-export default function Index() {
-  return <SignUpScreen />;
+export default class Index extends Component {
+  render() {
+    return <SignUpScreen />;
+  }
 }
