@@ -1,54 +1,93 @@
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore"; // IMPORTANTE: novas funções
-import { auth, db } from "../utils/firebaseConfig"; // IMPORTANTE: importando o 'db'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  doc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
+import { auth, db } from "../utils/firebaseConfig";
 
 class AuthService {
-  /**
-   * Encapsula a criação de usuário no Auth e salvamento no Firestore.
-   */
   async register(nome: string, email: string, senha: string) {
     try {
-      // 1. Cria o usuário no Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        senha,
+      );
       const user = userCredential.user;
-      
-      // 2. Atualiza o nome do usuário no perfil do Auth
+
       await updateProfile(user, { displayName: nome });
 
-      // 3. SALVA NO FIRESTORE
-      // Criamos um documento na coleção "usuarios" usando o UID do Auth como ID do documento
       await setDoc(doc(db, "usuarios", user.uid), {
-        nome: nome,
-        email: email,
+        nome,
+        email,
         uid: user.uid,
-        createdAt: serverTimestamp(), // Registra a hora exata no servidor
-        status: "ativo"
+        createdAt: serverTimestamp(),
+        status: "ativo",
       });
-      
+
       return user;
     } catch (error: any) {
-      // ADICIONE ESTAS LINHAS AQUI PARA DEBUGAR:
       console.error("DEBUG - ERRO REAL DO FIREBASE:", error);
-      
+
       let message = "Ocorreu um erro inesperado.";
-      
+
       switch (error.code) {
-        case 'auth/email-already-in-use':
-          message = "Este e-mail já está em uso.";
+        case "auth/email-already-in-use":
+          message = "Este e-mail ja esta em uso.";
           break;
-        case 'auth/invalid-email':
-          message = "E-mail inválido.";
+        case "auth/invalid-email":
+          message = "E-mail invalido.";
           break;
-        case 'auth/weak-password':
+        case "auth/weak-password":
           message = "A senha deve ter pelo menos 6 caracteres.";
           break;
-        // Erro comum de permissão do Firestore
-        case 'permission-denied':
-          message = "Erro de permissão ao salvar no banco de dados.";
+        case "permission-denied":
+          message = "Erro de permissao ao salvar no banco de dados.";
           break;
       }
-      
+
       throw new Error(message);
+    }
+  }
+
+  async login(email: string, senha: string) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        senha,
+      );
+
+      await addDoc(collection(db, "loginHistorico"), {
+        email: email.trim(),
+        uid: userCredential.user.uid,
+        data: serverTimestamp(),
+      });
+
+      return userCredential.user;
+    } catch (error: any) {
+      console.error("DEBUG - ERRO REAL DO LOGIN:", error);
+
+      if (
+        error.code === "auth/user-not-found" ||
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        throw new Error("E-mail ou senha incorretos.");
+      }
+
+      if (error.code === "auth/invalid-email") {
+        throw new Error("E-mail invalido.");
+      }
+
+      throw new Error("Falha ao conectar com o servidor. Verifique sua internet.");
     }
   }
 }
