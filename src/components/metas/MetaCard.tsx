@@ -1,3 +1,4 @@
+import React, { Component } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Meta from "../../models/Meta";
 
@@ -8,85 +9,100 @@ interface MetaCardProps {
   onConcluir: (id: string) => void;
 }
 
-export default function MetaCard({
-  meta,
-  onEditar,
-  onExcluir,
-  onConcluir,
-}: MetaCardProps) {
-  const progresso = meta.calcularProgresso();
+export default class MetaCard extends Component<MetaCardProps> {
+  private editar = () => {
+    this.props.onEditar(this.props.meta);
+  };
 
-  return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <View>
-          <Text style={styles.title}>{meta.titulo}</Text>
-          <Text style={styles.category}>{meta.categoria}</Text>
+  private excluir = () => {
+    const { meta, onExcluir } = this.props;
+
+    if (meta.id) {
+      onExcluir(meta.id);
+    }
+  };
+
+  private concluir = () => {
+    const { meta, onConcluir } = this.props;
+
+    if (meta.id) {
+      onConcluir(meta.id);
+    }
+  };
+
+  render() {
+    const { meta } = this.props;
+    const progresso = meta.calcularProgresso();
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.topRow}>
+          <View>
+            <Text style={styles.title}>{meta.titulo}</Text>
+            <Text style={styles.category}>{meta.categoria}</Text>
+          </View>
+
+          <Text
+            style={[
+              styles.status,
+              meta.status === "concluida" && styles.statusDone,
+            ]}
+          >
+            {meta.status}
+          </Text>
         </View>
 
-        <Text
-          style={[
-            styles.status,
-            meta.status === "concluida" && styles.statusDone,
-          ]}
-        >
-          {meta.status}
-        </Text>
-      </View>
+        <View style={styles.valuesRow}>
+          <Text style={styles.valueText}>
+            Atual: {meta.valorAtual} {meta.unidade}
+          </Text>
 
-      <View style={styles.valuesRow}>
-        <Text style={styles.valueText}>
-          Atual: {meta.valorAtual} {meta.unidade}
-        </Text>
+          <Text style={styles.valueText}>
+            Meta: {meta.valorDesejado} {meta.unidade}
+          </Text>
+        </View>
 
-        <Text style={styles.valueText}>
-          Meta: {meta.valorDesejado} {meta.unidade}
-        </Text>
-      </View>
+        <View style={styles.progressBackground}>
+          <View style={[styles.progressFill, { width: `${progresso}%` }]} />
+        </View>
 
-      <View style={styles.progressBackground}>
-        <View style={[styles.progressFill, { width: `${progresso}%` }]} />
-      </View>
+        <Text style={styles.progressText}>{progresso}% concluido</Text>
 
-      <Text style={styles.progressText}>{progresso}% concluído</Text>
-
-      {meta.dataLimite ? (
-        <Text style={styles.infoText}>Limite: {meta.dataLimite}</Text>
-      ) : null}
-
-      {meta.observacoes ? (
-        <Text style={styles.infoText}>{meta.observacoes}</Text>
-      ) : null}
-
-      {meta.relacionadoTipo && meta.relacionadoId ? (
-        <Text style={styles.infoText}>
-          Relacionado: {meta.relacionadoTipo} - {meta.relacionadoId}
-        </Text>
-      ) : null}
-
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.outlineButton} onPress={() => onEditar(meta)}>
-          <Text style={styles.outlineButtonText}>Editar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.dangerButton}
-          onPress={() => meta.id && onExcluir(meta.id)}
-        >
-          <Text style={styles.dangerButtonText}>Excluir</Text>
-        </TouchableOpacity>
-
-        {meta.status !== "concluida" ? (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => meta.id && onConcluir(meta.id)}
-          >
-            <Text style={styles.primaryButtonText}>Concluir</Text>
-          </TouchableOpacity>
+        {meta.dataLimite ? (
+          <Text style={styles.infoText}>Limite: {meta.dataLimite}</Text>
         ) : null}
+
+        {meta.observacoes ? (
+          <Text style={styles.infoText}>{meta.observacoes}</Text>
+        ) : null}
+
+        {meta.relacionadoTipo && meta.relacionadoId ? (
+          <Text style={styles.infoText}>
+            Relacionado: {meta.relacionadoTipo} - {meta.relacionadoId}
+          </Text>
+        ) : null}
+
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.outlineButton} onPress={this.editar}>
+            <Text style={styles.outlineButtonText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.dangerButton} onPress={this.excluir}>
+            <Text style={styles.dangerButtonText}>Excluir</Text>
+          </TouchableOpacity>
+
+          {meta.status !== "concluida" ? (
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={this.concluir}
+            >
+              <Text style={styles.primaryButtonText}>Concluir</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
-    </View>
-  );
+    );
+  }
 }
 
 const styles = StyleSheet.create({
