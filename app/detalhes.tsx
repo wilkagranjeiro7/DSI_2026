@@ -16,6 +16,7 @@ import LocalSearchParamsAdapter, {
   LocalSearchParamReader,
   LocalSearchParamsProps,
 } from "../src/navigation/LocalSearchParamsAdapter";
+import HistoricoExercicioService from "../src/services/HistoricoExercicioService";
 import { auth, db } from "../src/utils/firebaseConfig";
 
 interface DetalhesInstrucao {
@@ -253,6 +254,7 @@ class DetalhesExercicioScreen extends Component<
 > {
   private readonly paramReader: LocalSearchParamReader;
   private readonly instrucaoService = new InstrucaoExercicioService();
+  private readonly historicoService = new HistoricoExercicioService();
   private intervalo?: ReturnType<typeof setInterval>;
 
   constructor(props: LocalSearchParamsProps) {
@@ -352,6 +354,7 @@ class DetalhesExercicioScreen extends Component<
       if (user) {
         const hoje = new Date().toISOString().split("T")[0];
         const userRef = doc(db, "users", user.uid);
+        const seriesRep = new SeriesRepFormatter(this.seriesFixas);
 
         await setDoc(
           userRef,
@@ -362,6 +365,15 @@ class DetalhesExercicioScreen extends Component<
           },
           { merge: true },
         );
+
+        await this.historicoService.registrarConclusao({
+          exercicioId: this.idExercicio || null,
+          nomeExercicio: this.nomeExercicio,
+          grupoMuscular: this.grupoMuscular,
+          dataExecucao: hoje,
+          series: seriesRep.series,
+          repeticoes: seriesRep.repeticoes,
+        });
       }
 
       alert(`Exercicio "${this.nomeExercicio}" marcado como feito!`);
