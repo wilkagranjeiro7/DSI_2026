@@ -434,16 +434,24 @@ class MeusExerciciosScreen extends Component<
   private renderHeader = () => (
     <>
       <View style={styles.titleContainer}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.titleTextArea}>
           <Text style={styles.mainTitle}>Biblioteca de exercicios</Text>
           <Text style={styles.subTitleHeader}>Gerencie o seu treino</Text>
         </View>
-        <TouchableOpacity
-          style={styles.btnNovoExercicio}
-          onPress={() => router.push("/criar-exercicios")}
-        >
-          <Text style={styles.btnNovoExercicioText}>+ Novo</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.btnHistorico}
+            onPress={() => router.push("/historico-exercicios")}
+          >
+            <Text style={styles.btnHistoricoText}>Historico</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.btnNovoExercicio}
+            onPress={() => router.push("/criar-exercicios")}
+          >
+            <Text style={styles.btnNovoExercicioText}>+ Novo</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={20} color="#A0A0A0" />
@@ -577,9 +585,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
     marginBottom: 15,
+    gap: 10,
   },
+  titleTextArea: { flex: 1 },
   mainTitle: { fontSize: 24, fontWeight: "bold", color: "#111" },
   subTitleHeader: { fontSize: 13, color: "#707070", marginTop: 2 },
+  headerActions: { flexDirection: "row", gap: 8 },
+  btnHistorico: {
+    borderWidth: 1,
+    borderColor: "#F28C1B",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#FFF",
+  },
+  btnHistoricoText: { color: "#F28C1B", fontWeight: "bold", fontSize: 13 },
   btnNovoExercicio: {
     backgroundColor: "#F28C1B",
     paddingVertical: 8,

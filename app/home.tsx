@@ -311,8 +311,9 @@ export default class HomeScreen extends Component<object, HomeState> {
               />
 
               <SmallCard
-                title="Seu progresso"
+                title="Historico de exercicios"
                 subtitle="Veja sua evolucao"
+                onPress={() => router.push("/historico-exercicios")}
                 icon={
                   <Ionicons
                     name="bar-chart-outline"
