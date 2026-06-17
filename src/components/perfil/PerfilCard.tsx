@@ -1,33 +1,61 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { Component } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Perfil from "../../models/Perfil";
 
 interface PerfilCardProps {
   perfil: Perfil;
   onEditar: () => void;
   onExcluir: () => void;
-  onTrocarFoto: () => void; // Adicionado
-  carregandoFoto: boolean; // Adicionado
+  onTrocarFoto: () => void;
+  carregandoFoto: boolean;
 }
 
-export default function PerfilCard({ 
-  perfil, 
-  onEditar, 
-  onExcluir, 
-  onTrocarFoto, 
-  carregandoFoto 
-}: PerfilCardProps) {
-  
-  const fotoUrl = (perfil as any).photoUrl 
-    ? `${(perfil as any).photoUrl}?t=${new Date().getTime()}` 
-    : null;
+interface InfoProps {
+  label: string;
+  value: string;
+}
 
-  return (
-    <View style={styles.card}>
-      
-      {/* 📸 UNIFICADO: A foto agora é clicável e tem a camerazinha acoplada */}
+class PerfilPhotoPresenter {
+  constructor(private readonly perfil: Perfil) {}
+
+  getUrl(): string | null {
+    return this.perfil.photoUrl ? `${this.perfil.photoUrl}?t=${Date.now()}` : null;
+  }
+}
+
+class Info extends Component<InfoProps> {
+  render() {
+    const { label, value } = this.props;
+
+    return (
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value}</Text>
+      </View>
+    );
+  }
+}
+
+export default class PerfilCard extends Component<PerfilCardProps> {
+  private renderAvatar() {
+    const { perfil, onTrocarFoto, carregandoFoto } = this.props;
+    const fotoUrl = new PerfilPhotoPresenter(perfil).getUrl();
+
+    return (
       <View style={styles.avatarWrapper}>
-        <TouchableOpacity onPress={onTrocarFoto} disabled={carregandoFoto} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={onTrocarFoto}
+          disabled={carregandoFoto}
+          activeOpacity={0.8}
+        >
           {fotoUrl ? (
             <Image source={{ uri: fotoUrl }} style={styles.avatarImage} />
           ) : (
@@ -49,43 +77,44 @@ export default function PerfilCard({
           )}
         </TouchableOpacity>
       </View>
+    );
+  }
 
-      <Text style={styles.name}>{perfil.nome}</Text>
-      <Text style={styles.email}>{perfil.email}</Text>
+  render() {
+    const { perfil, onEditar, onExcluir } = this.props;
 
-      <View style={styles.infoBox}>
-        <Info label="Telefone" value={perfil.telefone || "Não informado"} />
-        <Info label="Idade" value={`${perfil.idade || 0} anos`} />
-        <Info label="Peso" value={`${perfil.peso || 0} kg`} />
-        <Info label="Altura" value={`${perfil.altura || 0} m`} />
-        <Info label="Objetivo" value={perfil.objetivo || "Não informado"} />
-        <Info label="Nível" value={perfil.nivel || "Não informado"} />
+    return (
+      <View style={styles.card}>
+        {this.renderAvatar()}
+
+        <Text style={styles.name}>{perfil.nome}</Text>
+        <Text style={styles.email}>{perfil.email}</Text>
+
+        <View style={styles.infoBox}>
+          <Info label="Telefone" value={perfil.telefone || "Nao informado"} />
+          <Info label="Idade" value={`${perfil.idade || 0} anos`} />
+          <Info label="Peso" value={`${perfil.peso || 0} kg`} />
+          <Info label="Altura" value={`${perfil.altura || 0} m`} />
+          <Info label="Objetivo" value={perfil.objetivo || "Nao informado"} />
+          <Info label="Nivel" value={perfil.nivel || "Nao informado"} />
+        </View>
+
+        {perfil.observacoes ? (
+          <Text style={styles.observacoes}>{perfil.observacoes}</Text>
+        ) : null}
+
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.primaryButton} onPress={onEditar}>
+            <Text style={styles.primaryButtonText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.dangerButton} onPress={onExcluir}>
+            <Text style={styles.dangerButtonText}>Excluir</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {perfil.observacoes ? (
-        <Text style={styles.observacoes}>{perfil.observacoes}</Text>
-      ) : null}
-
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.primaryButton} onPress={onEditar}>
-          <Text style={styles.primaryButtonText}>Editar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dangerButton} onPress={onExcluir}>
-          <Text style={styles.dangerButtonText}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -97,7 +126,6 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     alignItems: "center",
   },
-  // 🎨 Engenharia do CSS para acoplar o botão flutuante da câmera perfeitamente
   avatarWrapper: {
     position: "relative",
     marginBottom: 12,
