@@ -57,5 +57,5 @@ export class ThemeCatalog {
   static readonly maxContentWidth = 800;
 }
 
-export type ThemeColor = keyof typeof ThemeCatalog.colors.light &
-  keyof typeof ThemeCatalog.colors.dark;
+export type ThemeColor =
+  keyof typeof ThemeCatalog.colors.light & keyof typeof ThemeCatalog.colors.dark;

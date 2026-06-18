@@ -1,18 +1,18 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 
 import HistoricoExercicio, {
-    HistoricoExercicioDados,
+  HistoricoExercicioDados,
 } from "../models/HistoricoExercicio";
 import { auth, db } from "../utils/firebaseConfig";
 

@@ -11,120 +11,117 @@ import {
   View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
-import MetaCard from "../src/components/metas/MetaCard";
-import Meta from "../src/models/Meta";
-import MetaService from "../src/services/MetaService";
+import HistoricoExercicioCard from "../src/components/historico/HistoricoExercicioCard";
+import HistoricoExercicio from "../src/models/HistoricoExercicio";
+import HistoricoExercicioService from "../src/services/HistoricoExercicioService";
 
-interface MetasState {
-  metas: Meta[];
+interface HistoricoExerciciosState {
+  historicos: HistoricoExercicio[];
   carregando: boolean;
   erro: string;
 }
 
-export default class MetasScreen extends Component<object, MetasState> {
-  private readonly metaService = new MetaService();
+export default class HistoricoExerciciosScreen extends Component<
+  object,
+  HistoricoExerciciosState
+> {
+  private readonly historicoService = new HistoricoExercicioService();
 
-  state: MetasState = {
-    metas: [],
+  state: HistoricoExerciciosState = {
+    historicos: [],
     carregando: true,
     erro: "",
   };
 
   componentDidMount() {
-    this.carregarMetas();
+    this.carregarHistorico();
   }
 
-  private carregarMetas = async () => {
+  private carregarHistorico = async () => {
     try {
       this.setState({ carregando: true });
 
-      const lista = await this.metaService.listarMetas();
+      const lista = await this.historicoService.listarHistorico();
 
-      this.setState({ metas: lista, erro: "" });
+      this.setState({ historicos: lista, erro: "" });
     } catch (error) {
       this.setState({
-        erro: error instanceof Error ? error.message : "Erro ao carregar metas.",
+        erro:
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar historico.",
       });
     } finally {
       this.setState({ carregando: false });
     }
   };
 
-  private abrirNovaMeta = () => {
-    router.push("/meta-form");
+  private abrirNovoHistorico = () => {
+    router.push("/historico-exercicio-form");
   };
 
-  private editarMeta = (meta: Meta) => {
-    if (!meta.id) {
+  private editarHistorico = (historico: HistoricoExercicio) => {
+    if (!historico.id) {
       return;
     }
 
     router.push({
-      pathname: "/meta-form",
-      params: { id: meta.id },
+      pathname: "/historico-exercicio-form",
+      params: { id: historico.id },
     });
   };
 
   private confirmarExclusao = (id: string) => {
-    Alert.alert("Excluir meta", "Tem certeza que deseja excluir esta meta?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Excluir",
-        style: "destructive",
-        onPress: () => this.excluirMeta(id),
-      },
-    ]);
+    Alert.alert(
+      "Excluir historico",
+      "Tem certeza que deseja excluir este registro?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => this.excluirHistorico(id),
+        },
+      ],
+    );
   };
 
-  private excluirMeta = async (id: string) => {
+  private excluirHistorico = async (id: string) => {
     try {
-      await this.metaService.excluirMeta(id);
-      await this.carregarMetas();
+      await this.historicoService.excluirHistorico(id);
+      await this.carregarHistorico();
     } catch (error) {
       Alert.alert(
         "Erro",
-        error instanceof Error ? error.message : "Erro ao excluir meta.",
-      );
-    }
-  };
-
-  private concluirMeta = async (id: string) => {
-    try {
-      await this.metaService.concluirMeta(id);
-      await this.carregarMetas();
-    } catch (error) {
-      Alert.alert(
-        "Erro",
-        error instanceof Error ? error.message : "Erro ao concluir meta.",
+        error instanceof Error ? error.message : "Erro ao excluir historico.",
       );
     }
   };
 
   private renderConteudo() {
-    const { metas, carregando, erro } = this.state;
+    const { historicos, carregando } = this.state;
 
     if (carregando) {
-      return <Text style={styles.feedback}>Carregando metas...</Text>;
+      return <Text style={styles.feedback}>Carregando historico...</Text>;
     }
 
-    if (metas.length === 0) {
+    if (historicos.length === 0) {
       return (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Nenhuma meta cadastrada</Text>
+          <Text style={styles.emptyTitle}>Nenhum exercicio no historico</Text>
           <Text style={styles.emptyText}>
-            Toque em "+ Nova meta" para criar sua primeira meta.
+            Toque em "+ Novo" para registrar uma execucao manualmente.
           </Text>
         </View>
       );
     }
 
-    return metas.map((meta) => (
-      <MetaCard
-        key={meta.id}
-        meta={meta}
-        onEditar={this.editarMeta}
+    return historicos.map((historico) => (
+      <HistoricoExercicioCard
+        key={historico.id}
+        historico={historico}
+        onEditar={this.editarHistorico}
         onExcluir={this.confirmarExclusao}
-        onConcluir={this.concluirMeta}
       />
     ));
   }
@@ -147,16 +144,16 @@ export default class MetasScreen extends Component<object, MetasState> {
 
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.titleRow}>
-              <View>
-                <Text style={styles.title}>Minhas metas</Text>
-                <Text style={styles.subtitle}>Acompanhe seu progresso</Text>
+              <View style={styles.titleArea}>
+                <Text style={styles.title}>Historico de exercicios</Text>
+                <Text style={styles.subtitle}>Veja sua evolucao por execucao</Text>
               </View>
 
               <TouchableOpacity
                 style={styles.newButton}
-                onPress={this.abrirNovaMeta}
+                onPress={this.abrirNovoHistorico}
               >
-                <Text style={styles.newButtonText}>+ Nova meta</Text>
+                <Text style={styles.newButtonText}>+ Novo</Text>
               </TouchableOpacity>
             </View>
 
@@ -164,7 +161,7 @@ export default class MetasScreen extends Component<object, MetasState> {
             {this.renderConteudo()}
           </ScrollView>
 
-          <BottomNavbar active="metas" />
+          <BottomNavbar active="treinos" />
         </View>
       </SafeAreaView>
     );
@@ -202,6 +199,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 18,
+    gap: 12,
+  },
+  titleArea: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 18,
     borderWidth: 1,
     borderColor: "#E5E7EB",

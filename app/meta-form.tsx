@@ -2,19 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { Component } from "react";
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import MetaForm from "../src/components/metas/MetaForm";
 import { MetaFormulario } from "../src/models/Meta";
 import LocalSearchParamsAdapter, {
-    LocalSearchParamReader,
-    LocalSearchParamsProps,
+  LocalSearchParamReader,
+  LocalSearchParamsProps,
 } from "../src/navigation/LocalSearchParamsAdapter";
 import MetaService from "../src/services/MetaService";
 

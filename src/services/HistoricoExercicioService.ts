@@ -1,5 +1,5 @@
 import HistoricoExercicio, {
-    HistoricoExercicioDados,
+  HistoricoExercicioDados,
 } from "../models/HistoricoExercicio";
 import HistoricoExercicioRepository from "../repositories/HistoricoExercicioRepository";
 

@@ -81,11 +81,26 @@ export default class PerfilCard extends Component<PerfilCardProps> {
   }
 
   render() {
-    const { perfil, onEditar, onExcluir } = this.props;
+    const { perfil, onEditar, onExcluir, onTrocarFoto, carregandoFoto } = this.props;
 
     return (
       <View style={styles.card}>
         {this.renderAvatar()}
+
+        <TouchableOpacity
+          style={styles.photoButton}
+          onPress={onTrocarFoto}
+          disabled={carregandoFoto}
+        >
+          {carregandoFoto ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="camera-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.photoButtonText}>Trocar foto</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         <Text style={styles.name}>{perfil.nome}</Text>
         <Text style={styles.email}>{perfil.email}</Text>
@@ -128,7 +143,7 @@ const styles = StyleSheet.create({
   },
   avatarWrapper: {
     position: "relative",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   avatarImage: {
     width: 86,
@@ -164,6 +179,22 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+  },
+  photoButton: {
+    minWidth: 138,
+    minHeight: 38,
+    backgroundColor: "#FF8500",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    marginBottom: 14,
+  },
+  photoButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
   },
   name: {
     fontSize: 22,

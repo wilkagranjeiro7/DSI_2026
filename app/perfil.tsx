@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { onAuthStateChanged, Unsubscribe } from "firebase/auth";
@@ -129,6 +128,54 @@ class PerfilScreen extends Component<object, PerfilState> {
     }
   };
 
+  private async enviarImagemParaSupabaseStorage(
+    localUri: string,
+    caminhoArquivo: string,
+    contentType: string,
+  ) {
+    const respostaArquivo = await fetch(localUri);
+    const arquivo = await respostaArquivo.arrayBuffer();
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(caminhoArquivo, arquivo, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(caminhoArquivo);
+
+    return data.publicUrl;
+  }
+
+  private getMensagemUpload(error: unknown) {
+    const mensagem = error instanceof Error ? error.message : String(error);
+
+    if (
+      mensagem.toLowerCase().includes("bucket not found") ||
+      mensagem.toLowerCase().includes("not found")
+    ) {
+      return "Bucket avatars nao encontrado no Supabase Storage. Crie o bucket avatars e tente novamente.";
+    }
+
+    if (
+      mensagem.toLowerCase().includes("row-level security") ||
+      mensagem.toLowerCase().includes("permission") ||
+      mensagem.toLowerCase().includes("unauthorized") ||
+      mensagem.toLowerCase().includes("403")
+    ) {
+      return "Sem permissao para enviar a foto. Confira as policies do bucket avatars no Supabase.";
+    }
+
+    return "Erro ao salvar imagem no Supabase Storage.";
+  }
+
   private escolherEEnviarImagem = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -162,43 +209,69 @@ class PerfilScreen extends Component<object, PerfilState> {
         return;
       }
 
-      const localUri = result.assets[0].uri;
-      const base64 = await FileSystem.readAsStringAsync(localUri, {
-        encoding: "base64",
-      });
-      const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const fileExtension = localUri.split(".").pop();
-      const fileName = `${user.uid}/avatar.${fileExtension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, buffer, {
-          contentType: `image/${fileExtension}`,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
-
-      const publicUrl = publicUrlData.publicUrl;
-
-      await setDoc(doc(db, "users", user.uid), { photoUrl: publicUrl }, { merge: true });
-      await setDoc(
-        doc(db, "perfis", user.uid),
-        { photoUrl: publicUrl },
-        { merge: true },
+      const imageAsset = result.assets[0];
+      const localUri = imageAsset.uri;
+      const uriExtension = localUri
+        .split("?")[0]
+        .split(".")
+        .pop()
+        ?.toLowerCase();
+      const validUriExtension =
+        uriExtension && /^[a-z0-9]+$/.test(uriExtension) && uriExtension.length <= 5
+          ? uriExtension
+          : "jpg";
+      const mimeExtension = imageAsset.mimeType?.startsWith("image/")
+        ? imageAsset.mimeType.split("/").pop()?.toLowerCase()
+        : undefined;
+      const resolvedExtension = mimeExtension || validUriExtension;
+      const contentType =
+        imageAsset.mimeType ||
+        `image/${resolvedExtension === "jpg" ? "jpeg" : resolvedExtension}`;
+      const normalizedExtension =
+        resolvedExtension === "jpeg" ? "jpg" : resolvedExtension;
+      const caminhoArquivo = `profileImages/${user.uid}/avatar.${normalizedExtension}`;
+      const publicUrl = await this.enviarImagemParaSupabaseStorage(
+        localUri,
+        caminhoArquivo,
+        contentType,
       );
 
+      await setDoc(doc(db, "users", user.uid), { photoUrl: publicUrl }, { merge: true });
+      if (this.state.perfil) {
+        await setDoc(
+          doc(db, "perfis", user.uid),
+          { photoUrl: publicUrl },
+          { merge: true },
+        );
+      }
+
+      this.setState((estadoAtual) => ({
+        form: {
+          ...estadoAtual.form,
+          photoUrl: publicUrl,
+        },
+        perfil: estadoAtual.perfil
+          ? new Perfil({
+              id: estadoAtual.perfil.id,
+              nome: estadoAtual.perfil.nome,
+              email: estadoAtual.perfil.email,
+              telefone: estadoAtual.perfil.telefone,
+              idade: estadoAtual.perfil.idade,
+              peso: estadoAtual.perfil.peso,
+              altura: estadoAtual.perfil.altura,
+              objetivo: estadoAtual.perfil.objetivo,
+              nivel: estadoAtual.perfil.nivel,
+              observacoes: estadoAtual.perfil.observacoes,
+              photoUrl: publicUrl,
+            })
+          : null,
+      }));
       this.mostrarAvisoDiscreto("Foto de perfil atualizada com sucesso!");
-      await this.carregarPerfil();
-    } catch (error: any) {
-      console.error(error);
-      this.mostrarAvisoDiscreto("Erro ao salvar imagem.");
+    } catch (error) {
+      const mensagemErro = this.getMensagemUpload(error);
+
+      this.setState({ erro: mensagemErro });
+      this.mostrarAvisoDiscreto(mensagemErro);
     } finally {
       this.setState({ uploadingImage: false });
     }
@@ -303,6 +376,8 @@ class PerfilScreen extends Component<object, PerfilState> {
           form={form}
           erro={erro}
           onChange={this.alterarCampo}
+          onTrocarFoto={this.escolherEEnviarImagem}
+          carregandoFoto={uploadingImage}
           onSubmit={this.salvarPerfil}
           onCancel={this.cancelarEdicao}
         />
