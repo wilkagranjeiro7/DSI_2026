@@ -1,6 +1,7 @@
 import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth } from "firebase/auth";
 import { Firestore, getFirestore } from "firebase/firestore";
+import { FirebaseStorage, getStorage } from "firebase/storage";
 
 class FirebaseEnvironment {
   static read() {
@@ -19,6 +20,7 @@ class FirebaseClient {
   readonly app: FirebaseApp;
   readonly auth: Auth;
   readonly db: Firestore;
+  readonly storage: FirebaseStorage;
 
   constructor() {
     this.app = getApps().length
@@ -26,6 +28,7 @@ class FirebaseClient {
       : initializeApp(FirebaseEnvironment.read());
     this.auth = getAuth(this.app);
     this.db = getFirestore(this.app);
+    this.storage = getStorage(this.app);
   }
 }
 
@@ -34,4 +37,5 @@ const firebaseClient = new FirebaseClient();
 export const app = firebaseClient.app;
 export const auth = firebaseClient.auth;
 export const db = firebaseClient.db;
+export const storage = firebaseClient.storage;
 export default firebaseClient;

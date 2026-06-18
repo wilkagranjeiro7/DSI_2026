@@ -1,11 +1,22 @@
 import React, { Component } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { PerfilFormulario } from "../../models/Perfil";
 
 interface PerfilFormProps {
   form: PerfilFormulario;
   erro: string;
   onChange: (campo: keyof PerfilFormulario, valor: string) => void;
+  onTrocarFoto: () => void;
+  carregandoFoto: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -14,6 +25,45 @@ export default class PerfilForm extends Component<PerfilFormProps> {
   private changeField = (campo: keyof PerfilFormulario, valor: string) => {
     this.props.onChange(campo, valor);
   };
+
+  private renderFotoPerfil() {
+    const { form, onTrocarFoto, carregandoFoto } = this.props;
+    const fotoUrl = form.photoUrl ? `${form.photoUrl}?t=${Date.now()}` : null;
+
+    return (
+      <View style={styles.photoSection}>
+        <TouchableOpacity
+          style={styles.photoPreview}
+          onPress={onTrocarFoto}
+          disabled={carregandoFoto}
+          activeOpacity={0.8}
+        >
+          {fotoUrl ? (
+            <Image source={{ uri: fotoUrl }} style={styles.photoImage} />
+          ) : (
+            <Ionicons name="person-outline" size={42} color="#FF8500" />
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.photoButton}
+          onPress={onTrocarFoto}
+          disabled={carregandoFoto}
+        >
+          {carregandoFoto ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.photoButtonText}>
+                {fotoUrl ? "Trocar foto" : "Enviar foto"}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   render() {
     const { form, erro, onSubmit, onCancel } = this.props;
@@ -24,6 +74,8 @@ export default class PerfilForm extends Component<PerfilFormProps> {
         <Text style={styles.subtitle}>Atualize suas informacoes pessoais</Text>
 
         {erro ? <Text style={styles.error}>{erro}</Text> : null}
+
+        {this.renderFotoPerfil()}
 
         <Text style={styles.label}>Nome</Text>
         <TextInput
@@ -151,6 +203,41 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 12,
     fontWeight: "700",
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  photoPreview: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "#FFF4E6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FF8500",
+    marginBottom: 10,
+  },
+  photoImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+  },
+  photoButton: {
+    minWidth: 148,
+    minHeight: 42,
+    backgroundColor: "#FF8500",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  photoButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
   },
   label: {
     fontSize: 13,
