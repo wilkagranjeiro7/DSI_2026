@@ -5,6 +5,9 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "scheme": "fitmatch",
+    "updates": {
+      "enabled": false
+    },
     "ios": {
       "supportsTablet": true
     },
