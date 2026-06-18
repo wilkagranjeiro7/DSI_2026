@@ -1,8 +1,8 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth"; // Escutador de sessão dinâmica
+import { router } from "expo-router";
+import { onAuthStateChanged, Unsubscribe, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useCallback, useState } from "react";
+import React, { Component, ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -16,118 +16,160 @@ import {
 import BottomNavbar from "../src/components/BottomNavbar";
 import { auth, db } from "../src/utils/firebaseConfig";
 
-// Paleta de cores oficial do FitMatch
-const colors = {
-  primary: "#F28C1B",
-  primaryDark: "#D97706",
-  background: "#F3F4F6",
-  card: "#F1F1FB",
-  white: "#FFFFFF",
-  text: "#111827",
-  textSoft: "#8E8EA0",
-  border: "#F28C1B",
-  tabBg: "#FFFFFF",
-};
-
-function SmallCard({
-  title,
-  subtitle,
-  icon,
-  onPress,
-}: {
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  onPress?: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={styles.smallCard}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.smallBadge}>
-        <Text style={styles.smallBadgeText}>Notificação</Text>
-      </View>
-
-      <View style={styles.smallIconArea}>{icon}</View>
-
-      <View style={styles.smallCardContent}>
-        <Text style={styles.smallCardTitle}>{title}</Text>
-        <Text style={styles.smallCardSubtitle}>{subtitle}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+class HomeColors {
+  static primary = "#F28C1B";
+  static primaryDark = "#D97706";
+  static background = "#F3F4F6";
+  static card = "#F1F1FB";
+  static white = "#FFFFFF";
+  static text = "#111827";
+  static textSoft = "#8E8EA0";
+  static border = "#F28C1B";
+  static tabBg = "#FFFFFF";
 }
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const [userName, setUserName] = useState<string>(""); 
-  const [userPhoto, setUserPhoto] = useState<string | null>(null); // Armazena a foto do Supabase carregada do Firestore
-  const [loadingName, setLoadingName] = useState<boolean>(true); 
+interface HomeUserProfile {
+  userName: string;
+  userPhoto: string | null;
+}
 
-  // 📝 ESTADOS PARA O TOAST CARD (AVISO DISCRETO NA HOME)
-  const [toastVisivel, setToastVisivel] = useState(false);
-  const [toastMensagem, setToastMensagem] = useState("");
+class HomeUserReader {
+  async read(user: User): Promise<HomeUserProfile> {
+    let nomeExibicao = user.displayName || "Usuario";
+    let userPhoto: string | null = null;
 
-  const mostrarAvisoDiscreto = (mensagem: string) => {
-    setToastMensagem(mensagem);
-    setToastVisivel(true);
-    setTimeout(() => {
-      setToastVisivel(false);
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+
+    if (userDoc.exists()) {
+      const dados = userDoc.data();
+
+      if (dados.nome) {
+        nomeExibicao = dados.nome;
+      } else if (dados.name) {
+        nomeExibicao = dados.name;
+      }
+
+      if (dados.photoUrl) {
+        userPhoto = `${dados.photoUrl}?t=${Date.now()}`;
+      }
+
+      return { userName: nomeExibicao, userPhoto };
+    }
+
+    const perfilDoc = await getDoc(doc(db, "perfis", user.uid));
+
+    if (perfilDoc.exists()) {
+      const dadosPerfil = perfilDoc.data();
+
+      if (dadosPerfil.nome) {
+        nomeExibicao = dadosPerfil.nome;
+      }
+
+      if (dadosPerfil.photoUrl) {
+        userPhoto = `${dadosPerfil.photoUrl}?t=${Date.now()}`;
+      }
+    }
+
+    return { userName: nomeExibicao, userPhoto };
+  }
+}
+
+interface SmallCardProps {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  onPress?: () => void;
+}
+
+class SmallCard extends Component<SmallCardProps> {
+  render() {
+    const { title, subtitle, icon, onPress } = this.props;
+
+    return (
+      <TouchableOpacity
+        style={styles.smallCard}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.smallBadge}>
+          <Text style={styles.smallBadgeText}>Notificacao</Text>
+        </View>
+
+        <View style={styles.smallIconArea}>{icon}</View>
+
+        <View style={styles.smallCardContent}>
+          <Text style={styles.smallCardTitle}>{title}</Text>
+          <Text style={styles.smallCardSubtitle}>{subtitle}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+}
+
+interface HomeState {
+  userName: string;
+  userPhoto: string | null;
+  loadingName: boolean;
+  toastVisivel: boolean;
+  toastMensagem: string;
+}
+
+export default class HomeScreen extends Component<object, HomeState> {
+  private readonly userReader = new HomeUserReader();
+  private unsubscribeAuth?: Unsubscribe;
+  private toastTimer?: ReturnType<typeof setTimeout>;
+
+  state: HomeState = {
+    userName: "",
+    userPhoto: null,
+    loadingName: true,
+    toastVisivel: false,
+    toastMensagem: "",
+  };
+
+  componentDidMount() {
+    this.unsubscribeAuth = onAuthStateChanged(auth, this.handleAuthState);
+  }
+
+  componentWillUnmount() {
+    this.unsubscribeAuth?.();
+
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+  }
+
+  private handleAuthState = async (user: User | null) => {
+    if (!user) {
+      this.setState({ loadingName: false });
+      return;
+    }
+
+    try {
+      const profile = await this.userReader.read(user);
+      this.setState(profile);
+    } catch (error) {
+      console.error("Erro ao buscar dados dinamicos do usuario:", error);
+    } finally {
+      this.setState({ loadingName: false });
+    }
+  };
+
+  private mostrarAvisoDiscreto = (mensagem: string) => {
+    this.setState({ toastMensagem: mensagem, toastVisivel: true });
+
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+
+    this.toastTimer = setTimeout(() => {
+      this.setState({ toastVisivel: false });
     }, 2500);
   };
 
-  // 🔥 Escutador dinâmico: Atualiza os dados toda vez que a tela ganha foco
-  useFocusEffect(
-    useCallback(() => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          try {
-            // Tenta buscar no nó padrão de usuários
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            let nomeExibicao = user.displayName || "Usuário";
-            
-            if (userDoc.exists()) {
-              const dados = userDoc.data();
-              // 🔄 AJUSTE DE COMPATIBILIDADE: Verifica se o nome está em 'nome' (novo padrão) ou 'name' (antigo)
-              if (dados.nome) nomeExibicao = dados.nome;
-              else if (dados.name) nomeExibicao = dados.name;
-              
-              // Recarrega a foto quebrando o cache com o timestamp atualizado
-              if (dados.photoUrl) {
-                setUserPhoto(`${dados.photoUrl}?t=${new Date().getTime()}`);
-              } else {
-                setUserPhoto(null);
-              }
-            } else {
-              // Caso o amigo tenha mudado o nó principal para "perfis", faz o fallback de segurança
-              const perfilDoc = await getDoc(doc(db, "perfis", user.uid));
-              if (perfilDoc.exists()) {
-                const dadosPerfil = perfilDoc.data();
-                if (dadosPerfil.nome) nomeExibicao = dadosPerfil.nome;
-                if (dadosPerfil.photoUrl) setUserPhoto(`${dadosPerfil.photoUrl}?t=${new Date().getTime()}`);
-              }
-            }
-            setUserName(nomeExibicao);
-          } catch (error) {
-            console.error("Erro ao buscar dados dinâmicos do usuário:", error);
-          } finally {
-            setLoadingName(false);
-          }
-        } else {
-          setLoadingName(false);
-        }
-      });
-
-      // Limpeza correta da inscrição ao perder o foco da tela
-      return () => unsubscribe();
-    }, [])
-  );
-
-  const handleSignOut = async () => {
+  private handleSignOut = async () => {
     try {
-      mostrarAvisoDiscreto("Saindo da conta... Até logo! 👋");
+      this.mostrarAvisoDiscreto("Saindo da conta... Ate logo!");
       setTimeout(async () => {
         await auth.signOut();
         router.replace("/login");
@@ -137,171 +179,188 @@ export default function HomeScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={22} color={colors.white} />
-            </TouchableOpacity>
-            <MaterialCommunityIcons
-              name="dumbbell"
-              size={24}
-              color={colors.white}
-              style={{ marginLeft: 12 }}
-            />
-            <Text style={styles.headerTitle}>FitMatch</Text>
-          </View>
+  private renderAvatar() {
+    const { userPhoto } = this.state;
 
-          <View style={styles.headerRight}>
-            <Feather name="help-circle" size={20} color={colors.white} />
-            <TouchableOpacity onPress={handleSignOut}>
-              <Feather
-                name="log-out"
-                size={20}
-                color={colors.white}
-                style={{ marginLeft: 14 }}
+    return (
+      <TouchableOpacity onPress={() => router.push("/perfil")} activeOpacity={0.8}>
+        {userPhoto ? (
+          <Image source={{ uri: userPhoto }} style={styles.avatar} />
+        ) : (
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: "#D8D8EE",
+                alignItems: "center",
+                justifyContent: "center",
+              },
+            ]}
+          >
+            <Ionicons name="person" size={20} color={HomeColors.textSoft} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  render() {
+    const { userName, loadingName, toastVisivel, toastMensagem } = this.state;
+
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={22} color={HomeColors.white} />
+              </TouchableOpacity>
+              <MaterialCommunityIcons
+                name="dumbbell"
+                size={24}
+                color={HomeColors.white}
+                style={{ marginLeft: 12 }}
               />
-            </TouchableOpacity>
+              <Text style={styles.headerTitle}>FitMatch</Text>
+            </View>
+
+            <View style={styles.headerRight}>
+              <Feather name="help-circle" size={20} color={HomeColors.white} />
+              <TouchableOpacity onPress={this.handleSignOut}>
+                <Feather
+                  name="log-out"
+                  size={20}
+                  color={HomeColors.white}
+                  style={{ marginLeft: 14 }}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.greetingRow}>
+              {this.renderAvatar()}
+
+              <View style={{ marginLeft: 12 }}>
+                {loadingName ? (
+                  <ActivityIndicator size="small" color={HomeColors.primary} />
+                ) : (
+                  <Text style={styles.greetingTitle}>Ola, {userName}!</Text>
+                )}
+                <Text style={styles.greetingSubtitle}>Bem vinda ao FitMatch</Text>
+              </View>
+            </View>
+
+            <View style={styles.mainCard}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Notificacao</Text>
+              </View>
+
+              <Text style={styles.mainCardTitle}>Seu treino de hoje</Text>
+
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Aquecimento</Text>
+                <Text style={styles.sectionText}>2 min de polichinelos</Text>
+              </View>
+
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Alongamento</Text>
+                <Text style={styles.sectionText}>5 min de alongamento</Text>
+              </View>
+
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Treino</Text>
+                <Text style={styles.sectionText}>3x flexao</Text>
+                <Text style={styles.sectionText}>3x agachamento</Text>
+              </View>
+
+              <TouchableOpacity style={styles.mainButton}>
+                <Text style={styles.mainButtonText}>Iniciar treino</Text>
+              </TouchableOpacity>
+
+              <View style={styles.recentArea}>
+                <Text style={styles.recentLabel}>Atividade recente</Text>
+                <Text style={styles.recentDate}>Maio 04, 2026</Text>
+              </View>
+            </View>
+
+            <View style={styles.grid}>
+              <SmallCard
+                title="Biblioteca de Exercicios"
+                subtitle="Veja todos os exercicios"
+                onPress={() => router.push("/meus-exercicios")}
+                icon={
+                  <Ionicons
+                    name="library-outline"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+
+              <SmallCard
+                title="Estabelecer metas"
+                subtitle="Defina objetivos de treino"
+                onPress={() => router.push("/metas")}
+                icon={
+                  <Feather name="target" size={54} color={HomeColors.primary} />
+                }
+              />
+
+              <SmallCard
+                title="Historico de exercicios"
+                subtitle="Veja sua evolucao"
+                onPress={() => router.push("/historico-exercicios")}
+                icon={
+                  <Ionicons
+                    name="bar-chart-outline"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+
+              <SmallCard
+                title="Treinos favoritos"
+                subtitle="Acesse rapidamente"
+                onPress={() => router.push("/meus-treinos")}
+                icon={
+                  <Ionicons
+                    name="heart-outline"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+            </View>
+          </ScrollView>
+
+          <BottomNavbar active="home" />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Área de saudação dinâmica com foto real integrada */}
-          <View style={styles.greetingRow}>
-            <TouchableOpacity
-              onPress={() => router.push("/perfil")}
-              activeOpacity={0.8}
-            >
-              {userPhoto ? (
-                <Image source={{ uri: userPhoto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: "#D8D8EE", alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="person" size={20} color={colors.textSoft} />
-                </View>
-              )}
-            </TouchableOpacity>
-            
-            <View style={{ marginLeft: 12 }}>
-              {loadingName ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text style={styles.greetingTitle}>
-                  Olá, {userName}!
-                </Text>
-              )}
-              <Text style={styles.greetingSubtitle}>Bem vinda ao FitMatch</Text>
-            </View>
+        {toastVisivel && (
+          <View style={styles.toastCard}>
+            <Ionicons
+              name="information-circle"
+              size={20}
+              color={HomeColors.primary}
+            />
+            <Text style={styles.toastText}>{toastMensagem}</Text>
           </View>
-
-          {/* Card principal com resumo do treino */}
-          <View style={styles.mainCard}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Notificação</Text>
-            </View>
-
-            <Text style={styles.mainCardTitle}>Seu treino de hoje</Text>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Aquecimento</Text>
-              <Text style={styles.sectionText}>2 min de polichinelos</Text>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Alongamento</Text>
-              <Text style={styles.sectionText}>5 min de alongamento</Text>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Treino</Text>
-              <Text style={styles.sectionText}>3x flexão</Text>
-              <Text style={styles.sectionText}>3x agachamento</Text>
-            </View>
-
-            <TouchableOpacity style={styles.mainButton}>
-              <Text style={styles.mainButtonText}>Iniciar treino</Text>
-            </TouchableOpacity>
-
-            <View style={styles.recentArea}>
-              <Text style={styles.recentLabel}>Atividade recente</Text>
-              <Text style={styles.recentDate}>Maio 04, 2026</Text>
-            </View>
-          </View>
-
-          {/* Grade com atalhos rápidos */}
-          <View style={styles.grid}>
-            <SmallCard
-              title="Biblioteca de Exercícios"
-              subtitle="Veja todos os exercícios"
-              onPress={() => router.push("/meus-exercicios")}
-              icon={
-                <Ionicons
-                  name="library-outline"
-                  size={54}
-                  color={colors.primary}
-                />
-              }
-            />
-
-            <SmallCard
-              title="Estabelecer metas"
-              subtitle="Defina objetivos de treino"
-              onPress={() => router.push("/metas")} // 🔄 CORRIGIDO: Aponta para a nova tela de metas criada pelo seu colega
-              icon={<Feather name="target" size={54} color={colors.primary} />}
-            />
-
-            <SmallCard
-              title="Seu progresso"
-              subtitle="Veja sua evolução"
-              icon={
-                <Ionicons
-                  name="bar-chart-outline"
-                  size={54}
-                  color={colors.primary}
-                />
-              }
-            />
-
-            <SmallCard
-              title="Treinos favoritos"
-              subtitle="Acesse rapidamente"
-              onPress={() => router.push("/meus-treinos")}
-              icon={
-                <Ionicons
-                  name="heart-outline"
-                  size={54}
-                  color={colors.primary}
-                />
-              }
-            />
-          </View>
-        </ScrollView>
-
-        {/* Barra de navegação inferior global */}
-        <BottomNavbar active="home" />
-      </View>
-
-      {/* 🌟 COMPONENTE DO CARD DE AVISO DISCRETO (TOAST DA HOME) */}
-      {toastVisivel && (
-        <View style={styles.toastCard}>
-          <Ionicons name="information-circle" size={20} color={colors.primary} />
-          <Text style={styles.toastText}>{toastMensagem}</Text>
-        </View>
-      )}
-    </SafeAreaView>
-  );
+        )}
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.primary },
-  container: { flex: 1, backgroundColor: colors.background },
+  safeArea: { flex: 1, backgroundColor: HomeColors.primary },
+  container: { flex: 1, backgroundColor: HomeColors.background },
   header: {
-    backgroundColor: colors.primary,
+    backgroundColor: HomeColors.primary,
     height: 64,
     paddingHorizontal: 14,
     flexDirection: "row",
@@ -311,12 +370,12 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center" },
   headerRight: { flexDirection: "row", alignItems: "center" },
   headerTitle: {
-    color: colors.white,
+    color: HomeColors.white,
     fontSize: 26,
     fontWeight: "700",
     marginLeft: 12,
   },
-  scrollContent: { padding: 16, paddingBottom: 110 }, 
+  scrollContent: { padding: 16, paddingBottom: 110 },
   greetingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -328,21 +387,21 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: 23,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: HomeColors.primary,
   },
-  greetingTitle: { fontSize: 24, fontWeight: "700", color: colors.text },
-  greetingSubtitle: { fontSize: 15, color: colors.textSoft, marginTop: 2 },
+  greetingTitle: { fontSize: 24, fontWeight: "700", color: HomeColors.text },
+  greetingSubtitle: { fontSize: 15, color: HomeColors.textSoft, marginTop: 2 },
   mainCard: {
-    backgroundColor: colors.card,
+    backgroundColor: HomeColors.card,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: HomeColors.border,
     borderRadius: 12,
     padding: 14,
     marginBottom: 18,
   },
   badge: {
     alignSelf: "flex-start",
-    backgroundColor: colors.primary,
+    backgroundColor: HomeColors.primary,
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderTopLeftRadius: 10,
@@ -351,34 +410,38 @@ const styles = StyleSheet.create({
     marginLeft: -14,
     marginBottom: 12,
   },
-  badgeText: { color: colors.white, fontSize: 13, fontWeight: "600" },
+  badgeText: { color: HomeColors.white, fontSize: 13, fontWeight: "600" },
   mainCardTitle: {
     fontSize: 30,
     fontWeight: "700",
-    color: colors.text,
+    color: HomeColors.text,
     marginBottom: 16,
   },
   sectionBlock: { marginBottom: 14 },
   sectionTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: colors.text,
+    color: HomeColors.text,
     marginBottom: 2,
   },
-  sectionText: { fontSize: 18, color: colors.text, lineHeight: 24 },
+  sectionText: { fontSize: 18, color: HomeColors.text, lineHeight: 24 },
   mainButton: {
     alignSelf: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: HomeColors.primary,
     paddingHorizontal: 30,
     paddingVertical: 10,
     borderRadius: 20,
     marginTop: 8,
     marginBottom: 20,
   },
-  mainButtonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  mainButtonText: {
+    color: HomeColors.white,
+    fontSize: 16,
+    fontWeight: "700",
+  },
   recentArea: { marginTop: 6 },
-  recentLabel: { fontSize: 15, color: colors.text, marginBottom: 4 },
-  recentDate: { fontSize: 18, fontWeight: "500", color: colors.text },
+  recentLabel: { fontSize: 15, color: HomeColors.text, marginBottom: 4 },
+  recentDate: { fontSize: 18, fontWeight: "500", color: HomeColors.text },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -387,22 +450,26 @@ const styles = StyleSheet.create({
   },
   smallCard: {
     width: "47%",
-    backgroundColor: colors.card,
+    backgroundColor: HomeColors.card,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: HomeColors.border,
     borderRadius: 10,
     overflow: "hidden",
     minHeight: 210,
   },
   smallBadge: {
     alignSelf: "flex-start",
-    backgroundColor: colors.primary,
+    backgroundColor: HomeColors.primary,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderTopLeftRadius: 10,
     borderBottomRightRadius: 10,
   },
-  smallBadgeText: { color: colors.white, fontSize: 12, fontWeight: "600" },
+  smallBadgeText: {
+    color: HomeColors.white,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   smallIconArea: {
     height: 95,
     alignItems: "center",
@@ -413,16 +480,16 @@ const styles = StyleSheet.create({
   smallCardTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: colors.text,
+    color: HomeColors.text,
     marginBottom: 4,
   },
-  smallCardSubtitle: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  smallCardSubtitle: { fontSize: 14, color: HomeColors.text, lineHeight: 20 },
   toastCard: {
     position: "absolute",
-    bottom: 100, 
+    bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: "#1E293B", 
+    backgroundColor: "#1E293B",
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,

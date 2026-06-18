@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { router } from "expo-router";
+import React, { Component } from "react";
 import {
   FlatList,
   SafeAreaView,
@@ -13,210 +13,239 @@ import {
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
 
-// Mantendo os filtros organizados por categorias gerais de treino
-const CATEGORIAS = [
-  "Todos",
-  "Hoje",
-  "Superior",
-  "Inferior",
-  "Cardio",
-  "Abdômen",
-  "Alongamento",
-];
+class TreinoBiblioteca {
+  constructor(
+    readonly id: string,
+    readonly nome: string,
+    readonly divisao: string,
+    readonly duracao: string,
+    readonly dias: string,
+    readonly categoria: string,
+  ) {}
+}
 
-// Apenas os CARDS DOS TREINOS (Sem misturar exercícios aqui dentro!)
-const TREINOS = [
-  {
-    id: "1",
-    nome: "Treino Superior",
-    divisao: "Peito, ombro, costas e bíceps",
-    duracao: "45 min",
-    dias: "Seg/Qua",
-    categoria: "Superior",
-  },
-  {
-    id: "2",
-    nome: "Treino Inferior",
-    divisao: "Pernas, glúteos e panturrilha",
-    duracao: "55 min",
-    dias: "Ter/Qui",
-    categoria: "Inferior",
-  },
-  {
-    id: "3",
-    nome: "Cardio HIIT",
-    divisao: "Condicionamento e resistência",
-    duracao: "30 min",
-    dias: "Sex",
-    categoria: "Cardio",
-  },
-  {
-    id: "4",
-    nome: "Foco no Core",
-    divisao: "Fortalecimento de abdômen",
-    duracao: "15 min",
-    dias: "Seg/Qua/Sex",
-    categoria: "Abdômen",
-  },
-  {
-    id: "5",
-    nome: "Mobilidade Geral",
-    divisao: "Alongamento e flexibilidade",
-    duracao: "20 min",
-    dias: "Sáb/Dom",
-    categoria: "Alongamento",
-  },
-];
+class BibliotecaTreinoRepository {
+  private readonly categorias = [
+    "Todos",
+    "Hoje",
+    "Superior",
+    "Inferior",
+    "Cardio",
+    "Abdomen",
+    "Alongamento",
+  ];
 
-export default function BibliotecaRoute() {
-  const [categoriaAtiva, setCategoriaAtiva] = useState("Todos");
-  const [busca, setBusca] = useState("");
-  const router = useRouter();
+  private readonly treinos = [
+    new TreinoBiblioteca(
+      "1",
+      "Treino Superior",
+      "Peito, ombro, costas e biceps",
+      "45 min",
+      "Seg/Qua",
+      "Superior",
+    ),
+    new TreinoBiblioteca(
+      "2",
+      "Treino Inferior",
+      "Pernas, gluteos e panturrilha",
+      "55 min",
+      "Ter/Qui",
+      "Inferior",
+    ),
+    new TreinoBiblioteca(
+      "3",
+      "Cardio HIIT",
+      "Condicionamento e resistencia",
+      "30 min",
+      "Sex",
+      "Cardio",
+    ),
+    new TreinoBiblioteca(
+      "4",
+      "Foco no Core",
+      "Fortalecimento de abdomen",
+      "15 min",
+      "Seg/Qua/Sex",
+      "Abdomen",
+    ),
+    new TreinoBiblioteca(
+      "5",
+      "Mobilidade Geral",
+      "Alongamento e flexibilidade",
+      "20 min",
+      "Sab/Dom",
+      "Alongamento",
+    ),
+  ];
 
-  const treinosFiltrados = useMemo(() => {
-    return TREINOS.filter((treino) => {
+  listarCategorias() {
+    return this.categorias;
+  }
+
+  filtrar(categoriaAtiva: string, busca: string) {
+    return this.treinos.filter((treino) => {
       const correspondeCategoria =
         categoriaAtiva === "Todos" || treino.categoria === categoriaAtiva;
       const correspondeBusca = treino.nome
         .toLowerCase()
         .includes(busca.toLowerCase());
+
       return correspondeCategoria && correspondeBusca;
     });
-  }, [categoriaAtiva, busca]);
+  }
+}
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Superior */}
-      <View style={styles.headerLaranja}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.logoText}>FitMatch</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
-        </TouchableOpacity>
+interface BibliotecaState {
+  categoriaAtiva: string;
+  busca: string;
+}
+
+export default class BibliotecaRoute extends Component<object, BibliotecaState> {
+  private readonly repository = new BibliotecaTreinoRepository();
+
+  state: BibliotecaState = {
+    categoriaAtiva: "Todos",
+    busca: "",
+  };
+
+  private abrirTreino = (item: TreinoBiblioteca) => {
+    router.push({
+      pathname: "/meus-exercicios",
+      params: {
+        treinoSelecionado: item.nome,
+        categoriaTreino: item.categoria,
+      },
+    });
+  };
+
+  private renderCategoria = (cat: string) => {
+    const { categoriaAtiva } = this.state;
+
+    return (
+      <TouchableOpacity
+        key={cat}
+        onPress={() => this.setState({ categoriaAtiva: cat })}
+        style={[
+          styles.filterTab,
+          categoriaAtiva === cat && styles.filterTabActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.filterText,
+            categoriaAtiva === cat && styles.filterTextActive,
+          ]}
+        >
+          {cat}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  private renderTreino = ({ item }: { item: TreinoBiblioteca }) => (
+    <TouchableOpacity
+      style={styles.cardFigma}
+      activeOpacity={0.7}
+      onPress={() => this.abrirTreino(item)}
+    >
+      <View style={styles.cardInfoContainer}>
+        <View style={styles.iconWrapper}>
+          <MaterialCommunityIcons name="dumbbell" size={24} color="#F28C1B" />
+        </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.workoutTitle}>{item.nome}</Text>
+          <Text style={styles.workoutSub}>{item.divisao}</Text>
+          <Text style={styles.workoutSpecs}>
+            {item.duracao} - {item.dias}
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color="#C0C0C0"
+          style={{ alignSelf: "center" }}
+        />
       </View>
 
-      <View style={styles.content}>
-        {/* Cabeçalho da Lista */}
-        <View style={styles.titleContainer}>
-          <View>
-            <Text style={styles.mainTitle}>Meus treinos</Text>
-            <Text style={styles.subTitleHeader}>
-              Gerencie seus planos de treino
-            </Text>
-          </View>
+      <View style={styles.actionButtonsRow}>
+        <TouchableOpacity
+          style={styles.btnOutline}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={styles.btnOutlineText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnOutline}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={styles.btnOutlineText}>Excluir</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 
-          <TouchableOpacity
-            style={styles.btnNovoTreino}
-            onPress={() => router.push("/criar-treino")}
-          >
-            <Text style={styles.btnNovoTreinoText}>+ Novo treino</Text>
+  render() {
+    const { categoriaAtiva, busca } = this.state;
+    const treinosFiltrados = this.repository.filtrar(categoriaAtiva, busca);
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerLaranja}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.logoText}>FitMatch</Text>
+          <TouchableOpacity>
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
 
-        {/* Caixa de Busca */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#A0A0A0" />
-          <TextInput
-            placeholder="Buscar treino"
-            placeholderTextColor="#A0A0A0"
-            style={styles.input}
-            value={busca}
-            onChangeText={setBusca}
+        <View style={styles.content}>
+          <View style={styles.titleContainer}>
+            <View>
+              <Text style={styles.mainTitle}>Meus treinos</Text>
+              <Text style={styles.subTitleHeader}>
+                Gerencie seus planos de treino
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.btnNovoTreino}
+              onPress={() => router.push("/criar-treino")}
+            >
+              <Text style={styles.btnNovoTreinoText}>+ Novo treino</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchBox}>
+            <Ionicons name="search-outline" size={20} color="#A0A0A0" />
+            <TextInput
+              placeholder="Buscar treino"
+              placeholderTextColor="#A0A0A0"
+              style={styles.input}
+              value={busca}
+              onChangeText={(valor) => this.setState({ busca: valor })}
+            />
+          </View>
+
+          <View style={styles.filterWrapper}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {this.repository.listarCategorias().map(this.renderCategoria)}
+            </ScrollView>
+          </View>
+
+          <FlatList
+            data={treinosFiltrados}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            renderItem={this.renderTreino}
+            contentContainerStyle={{ paddingBottom: 20 }}
           />
         </View>
-
-        {/* Filtros em Pílula */}
-        <View style={styles.filterWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIAS.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setCategoriaAtiva(cat)}
-                style={[
-                  styles.filterTab,
-                  categoriaAtiva === cat && styles.filterTabActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    categoriaAtiva === cat && styles.filterTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Lista de Cards */}
-        <FlatList
-          data={treinosFiltrados}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.cardFigma}
-              activeOpacity={0.7}
-              onPress={() => {
-                // Passa a categoria do treino para a tela de exercícios filtrar automaticamente
-                router.push({
-                  pathname: "/meus-exercicios",
-                  params: {
-                    treinoSelecionado: item.nome,
-                    categoriaTreino: item.categoria,
-                  },
-                });
-              }}
-            >
-              <View style={styles.cardInfoContainer}>
-                <View style={styles.iconWrapper}>
-                  <MaterialCommunityIcons
-                    name="dumbbell"
-                    size={24}
-                    color="#F28C1B"
-                  />
-                </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.workoutTitle}>{item.nome}</Text>
-                  <Text style={styles.workoutSub}>{item.divisao}</Text>
-                  <Text style={styles.workoutSpecs}>
-                    {item.duracao} • {item.dias}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color="#C0C0C0"
-                  style={{ alignSelf: "center" }}
-                />
-              </View>
-
-              <View style={styles.actionButtonsRow}>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnOutline}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <Text style={styles.btnOutlineText}>Excluir</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </View>
-      <BottomNavbar active="treinos" />
-    </SafeAreaView>
-  );
+        <BottomNavbar active="treinos" />
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({

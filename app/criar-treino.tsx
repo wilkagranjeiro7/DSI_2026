@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { router } from "expo-router";
+import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
+import React, { Component } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,10 +15,11 @@ import {
   View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
-
-// Importações do Firebase
-import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
-import { db } from "../src/utils/firebaseConfig"; // Mesma rota de antes!
+import LocalSearchParamsAdapter, {
+  LocalSearchParamReader,
+  LocalSearchParamsProps,
+} from "../src/navigation/LocalSearchParamsAdapter";
+import { db } from "../src/utils/firebaseConfig";
 
 const colors = {
   primary: "#F28C1B",
@@ -28,207 +30,231 @@ const colors = {
   border: "#E5E7EB",
 };
 
-export default function CriarTreinoScreen() {
-  const router = useRouter();
+interface CriarTreinoState {
+  nomeTreino: string;
+  objetivo: string;
+  tipoTreino: string;
+  diasSemana: string;
+  duracao: string;
+  observacoes: string;
+}
 
-  // Pegando os dados se o usuário veio pelo botão "Editar"
-  const params = useLocalSearchParams();
-  const editando = params.editando === "true";
+class TreinoFormData {
+  constructor(private readonly state: CriarTreinoState) {}
 
-  // Estados preenchidos com os dados existentes (se estiver editando)
-  const [nomeTreino, setNomeTreino] = useState((params.nome as string) || "");
-  const [objetivo, setObjetivo] = useState((params.objetivo as string) || "");
-  const [tipoTreino, setTipoTreino] = useState((params.tipo as string) || "");
-  const [diasSemana, setDiasSemana] = useState((params.dias as string) || "");
-  const [duracao, setDuracao] = useState((params.duracao as string) || "");
-  const [observacoes, setObservacoes] = useState(
-    (params.observacoes as string) || "",
-  );
+  toFirestore() {
+    return {
+      nome: this.state.nomeTreino,
+      objetivo: this.state.objetivo,
+      tipo: this.state.tipoTreino,
+      dias: this.state.diasSemana,
+      duracao: this.state.duracao,
+      observacoes: this.state.observacoes,
+    };
+  }
+}
 
-  // A função que manda os dados do treino para a "cozinha" (Firebase)
-  const handleSalvar = async () => {
+class CriarTreinoScreen extends Component<LocalSearchParamsProps, CriarTreinoState> {
+  private readonly paramReader: LocalSearchParamReader;
+
+  constructor(props: LocalSearchParamsProps) {
+    super(props);
+
+    this.paramReader = new LocalSearchParamReader(props.params);
+    this.state = {
+      nomeTreino: this.paramReader.get("nome"),
+      objetivo: this.paramReader.get("objetivo"),
+      tipoTreino: this.paramReader.get("tipo"),
+      diasSemana: this.paramReader.get("dias"),
+      duracao: this.paramReader.get("duracao"),
+      observacoes: this.paramReader.get("observacoes"),
+    };
+  }
+
+  private get editando() {
+    return this.paramReader.isTrue("editando");
+  }
+
+  private showMessage(title: string, message: string) {
+    if (Platform.OS === "web") {
+      window.alert(message);
+      return;
+    }
+
+    Alert.alert(title, message);
+  }
+
+  private handleSalvar = async () => {
+    const { nomeTreino } = this.state;
+
     if (nomeTreino === "") {
-      if (Platform.OS === "web")
-        window.alert("O nome do treino é obrigatório!");
-      else Alert.alert("Atenção", "O nome do treino é obrigatório!");
+      this.showMessage("Atencao", "O nome do treino e obrigatorio!");
       return;
     }
 
     try {
-      if (editando && params.id) {
-        // Se já existe e é do Firebase (ID longo), nós ATUALIZAMOS
-        if ((params.id as string).length > 10) {
-          await updateDoc(doc(db, "treinos", params.id as string), {
-            nome: nomeTreino,
-            objetivo,
-            tipo: tipoTreino,
-            dias: diasSemana,
-            duracao,
-            observacoes,
-          });
+      const formData = new TreinoFormData(this.state);
+      const id = this.paramReader.get("id");
+
+      if (this.editando && id) {
+        if (id.length > 10) {
+          await updateDoc(doc(db, "treinos", id), formData.toFirestore());
         }
 
-        if (Platform.OS === "web")
-          window.alert("Treino atualizado com sucesso!");
-        else Alert.alert("Sucesso!", "Treino atualizado com sucesso.");
+        this.showMessage("Sucesso!", "Treino atualizado com sucesso!");
       } else {
-        // Se for um NOVO treino, nós SALVAMOS na coleção "treinos"
         await addDoc(collection(db, "treinos"), {
-          nome: nomeTreino,
-          objetivo,
-          tipo: tipoTreino,
-          dias: diasSemana,
-          duracao,
-          observacoes,
+          ...formData.toFirestore(),
           dataCriacao: new Date(),
         });
 
-        if (Platform.OS === "web") window.alert("Treino salvo com sucesso!");
-        else Alert.alert("Sucesso!", "Treino salvo com sucesso.");
+        this.showMessage("Sucesso!", "Treino salvo com sucesso!");
       }
 
       router.back();
     } catch (erro) {
       console.error("Erro ao salvar treino: ", erro);
-      if (Platform.OS === "web")
-        window.alert("Não foi possível salvar o treino.");
-      else Alert.alert("Erro", "Não foi possível salvar o treino.");
+      this.showMessage("Erro", "Nao foi possivel salvar o treino.");
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* CABEÇALHO LARANJA */}
-        <View style={styles.headerLaranja}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.iconButton}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.white} />
-          </TouchableOpacity>
-          <View style={styles.headerLogo}>
-            <MaterialCommunityIcons
-              name="dumbbell"
-              size={24}
-              color={colors.white}
-            />
-            <Text style={styles.logoText}>FitMatch</Text>
-          </View>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="ellipsis-vertical" size={22} color={colors.white} />
-          </TouchableOpacity>
-        </View>
+  render() {
+    const {
+      nomeTreino,
+      objetivo,
+      tipoTreino,
+      diasSemana,
+      duracao,
+      observacoes,
+    } = this.state;
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* TÍTULOS DINÂMICOS: Mudam se for Editar ou Novo */}
-            <Text style={styles.mainTitle}>
-              {editando ? "Editar treino" : "Novo treino"}
-            </Text>
-            <Text style={styles.subTitleHeader}>
-              {editando
-                ? "Altere as informações da sua ficha"
-                : "Cadastre um treino personalizado"}
-            </Text>
-
-            {/* FORMULÁRIO */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nome do treino</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex.: Treino de força A"
-                placeholderTextColor="#A0A0A0"
-                value={nomeTreino}
-                onChangeText={setNomeTreino}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Objetivo</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Hipertrofia"
-                placeholderTextColor="#A0A0A0"
-                value={objetivo}
-                onChangeText={setObjetivo}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Tipo de treino</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Força"
-                placeholderTextColor="#A0A0A0"
-                value={tipoTreino}
-                onChangeText={setTipoTreino}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Dias da semana</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Seg, Qua e Sex"
-                placeholderTextColor="#A0A0A0"
-                value={diasSemana}
-                onChangeText={setDiasSemana}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Duração estimada</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="45 minutos"
-                placeholderTextColor="#A0A0A0"
-                value={duracao}
-                onChangeText={setDuracao}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Observações</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Anotações para execução"
-                placeholderTextColor="#A0A0A0"
-                multiline={true}
-                numberOfLines={4}
-                textAlignVertical="top"
-                value={observacoes}
-                onChangeText={setObservacoes}
-              />
-            </View>
-
-            {/* BOTÃO SALVAR */}
-            <TouchableOpacity
-              style={styles.btnSalvar}
-              onPress={handleSalvar}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.btnSalvarText}>
-                {editando ? "Atualizar treino" : "Salvar treino"}
-              </Text>
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.headerLaranja}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.white} />
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+            <View style={styles.headerLogo}>
+              <MaterialCommunityIcons
+                name="dumbbell"
+                size={24}
+                color={colors.white}
+              />
+              <Text style={styles.logoText}>FitMatch</Text>
+            </View>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="ellipsis-vertical" size={22} color={colors.white} />
+            </TouchableOpacity>
+          </View>
 
-        {/* BARRA DE NAVEGAÇÃO INFERIOR */}
-        <BottomNavbar active="treinos" />
-        
-      </View>
-    </SafeAreaView>
-  );
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
+            <ScrollView
+              style={styles.content}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              <Text style={styles.mainTitle}>
+                {this.editando ? "Editar treino" : "Novo treino"}
+              </Text>
+              <Text style={styles.subTitleHeader}>
+                {this.editando
+                  ? "Altere as informacoes da sua ficha"
+                  : "Cadastre um treino personalizado"}
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Nome do treino</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex.: Treino de forca A"
+                  placeholderTextColor="#A0A0A0"
+                  value={nomeTreino}
+                  onChangeText={(valor) => this.setState({ nomeTreino: valor })}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Objetivo</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Hipertrofia"
+                  placeholderTextColor="#A0A0A0"
+                  value={objetivo}
+                  onChangeText={(valor) => this.setState({ objetivo: valor })}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Tipo de treino</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Forca"
+                  placeholderTextColor="#A0A0A0"
+                  value={tipoTreino}
+                  onChangeText={(valor) => this.setState({ tipoTreino: valor })}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Dias da semana</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Seg, Qua e Sex"
+                  placeholderTextColor="#A0A0A0"
+                  value={diasSemana}
+                  onChangeText={(valor) => this.setState({ diasSemana: valor })}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Duracao estimada</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="45 minutos"
+                  placeholderTextColor="#A0A0A0"
+                  value={duracao}
+                  onChangeText={(valor) => this.setState({ duracao: valor })}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Observacoes</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Anotacoes para execucao"
+                  placeholderTextColor="#A0A0A0"
+                  multiline={true}
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={observacoes}
+                  onChangeText={(valor) => this.setState({ observacoes: valor })}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.btnSalvar}
+                onPress={this.handleSalvar}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.btnSalvarText}>
+                  {this.editando ? "Atualizar treino" : "Salvar treino"}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+
+          <BottomNavbar active="treinos" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
+
+export default LocalSearchParamsAdapter.connect(CriarTreinoScreen);
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.primary },
@@ -251,7 +277,6 @@ const styles = StyleSheet.create({
   },
   content: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 100 },
-
   mainTitle: {
     fontSize: 26,
     fontWeight: "bold",
@@ -264,7 +289,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 25,
   },
-
   inputGroup: {
     marginBottom: 18,
   },
@@ -288,7 +312,6 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 12,
   },
-
   btnSalvar: {
     backgroundColor: colors.primary,
     borderRadius: 25,
@@ -306,25 +329,5 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 18,
     fontWeight: "bold",
-  },
-
-  bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: colors.white,
-    width: "100%",
-    paddingBottom: 25,
-  },
-  tabItem: { alignItems: "center", justifyContent: "center" },
-  tabText: {
-    fontSize: 12,
-    color: colors.textSoft,
-    marginTop: 4,
-    fontWeight: "500",
   },
 });

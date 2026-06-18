@@ -1,11 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient, createClient } from "@supabase/supabase-js";
 
-// O process.env busca os valores automaticamente dentro do seu arquivo .env único
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("⚠️ Chaves do Supabase não encontradas! Verifique o seu arquivo .env");
+class SupabaseEnvironment {
+  static read() {
+    return {
+      url: process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+      anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
+    };
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+class SupabaseClientFactory {
+  create(): SupabaseClient {
+    const environment = SupabaseEnvironment.read();
+
+    if (!environment.url || !environment.anonKey) {
+      console.warn(
+        "Chaves do Supabase nao encontradas. Verifique o arquivo .env",
+      );
+    }
+
+    return createClient(environment.url, environment.anonKey);
+  }
+}
+
+export const supabase = new SupabaseClientFactory().create();

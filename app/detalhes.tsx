@@ -1,6 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import { doc, setDoc } from "firebase/firestore";
+import React, { Component } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -10,305 +12,336 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// Importações do Firebase mantidas
-import { doc, setDoc } from "firebase/firestore";
+import LocalSearchParamsAdapter, {
+  LocalSearchParamReader,
+  LocalSearchParamsProps,
+} from "../src/navigation/LocalSearchParamsAdapter";
+import HistoricoExercicioService from "../src/services/HistoricoExercicioService";
 import { auth, db } from "../src/utils/firebaseConfig";
 
-// NOVO: Importando a memória do celular
-import AsyncStorage from "@react-native-async-storage/async-storage";
+interface DetalhesInstrucao {
+  passos: string[];
+  musculos: string[];
+}
 
-// BIBLIOTECA COMPLETA DE TODOS OS EXERCÍCIOS
-const obterInstrucoesDetalhadas = (nome: string) => {
-  const nomeLower = nome.toLowerCase();
+class InstrucaoRule {
+  constructor(
+    private readonly termos: string[],
+    readonly instrucao: DetalhesInstrucao,
+  ) {}
 
-  // --- AQUECIMENTO E ALONGAMENTO ---
-  if (
-    nomeLower.includes("rotação de ombros") ||
-    nomeLower.includes("rotacao de ombros")
-  ) {
-    return {
-      passos: [
-        "Fique em pé ou sentada com a coluna bem reta e os braços relaxados.",
-        "Eleve os ombros em direção às orelhas.",
-        "Puxe os ombros para trás juntando as omoplatas, depois para baixo e para frente.",
-        "Faça o círculo de forma ampla e controlada, respirando fundo.",
-      ],
-      musculos: ["Deltoide", "Trapézio", "Pescoço"],
-    };
+  matches(nome: string) {
+    const nomeLower = nome.toLowerCase();
+    return this.termos.some((termo) => nomeLower.includes(termo));
   }
-  if (
-    nomeLower.includes("rotação de tronco") ||
-    nomeLower.includes("rotacao de tronco")
-  ) {
-    return {
+}
+
+class InstrucaoExercicioService {
+  private readonly rules = [
+    new InstrucaoRule(["rotacao de ombros", "rotação de ombros"], {
       passos: [
-        "Pés afastados na largura dos ombros e joelhos levemente dobrados.",
+        "Fique em pe ou sentada com a coluna bem reta e os bracos relaxados.",
+        "Eleve os ombros em direcao as orelhas.",
+        "Puxe os ombros para tras juntando as omoplatas, depois para baixo e para frente.",
+        "Faca o circulo de forma ampla e controlada, respirando fundo.",
+      ],
+      musculos: ["Deltoide", "Trapezio", "Pescoco"],
+    }),
+    new InstrucaoRule(["rotacao de tronco", "rotação de tronco"], {
+      passos: [
+        "Pes afastados na largura dos ombros e joelhos levemente dobrados.",
         "Gire a parte superior do corpo de um lado para o outro.",
-        "Deixe os braços balançarem naturalmente batendo na cintura.",
-        "O quadril acompanha o movimento e o calcanhar pode sair levemente do chão.",
+        "Deixe os bracos balancarem naturalmente batendo na cintura.",
+        "O quadril acompanha o movimento e o calcanhar pode sair levemente do chao.",
       ],
-      musculos: ["Core (Abdômen)", "Lombar", "Oblíquos"],
-    };
-  }
-  if (
-    nomeLower.includes("balanço de pernas") ||
-    nomeLower.includes("balanco de pernas")
-  ) {
-    return {
+      musculos: ["Core", "Lombar", "Obliquos"],
+    }),
+    new InstrucaoRule(["balanco de pernas", "balanço de pernas"], {
       passos: [
-        "Apoie uma das mãos em uma parede para manter o equilíbrio.",
-        "Mantendo a perna esticada (sem travar o joelho), balance para frente e para trás.",
+        "Apoie uma das maos em uma parede para manter o equilibrio.",
+        "Mantendo a perna esticada, balance para frente e para tras.",
         "O tronco deve ficar totalmente parado, mexa apenas a perna.",
       ],
-      musculos: ["Quadril", "Glúteos", "Posterior de Coxa"],
-    };
-  }
-  if (nomeLower.includes("polichinelo")) {
-    return {
+      musculos: ["Quadril", "Gluteos", "Posterior de Coxa"],
+    }),
+    new InstrucaoRule(["polichinelo"], {
       passos: [
-        "Em pé, pés juntos e braços colados ao lado do corpo.",
-        "Pule afastando as pernas e levantando os braços até as mãos se tocarem.",
-        "Dê outro pulo para voltar rapidamente à posição inicial.",
-        "Pouse na ponta dos pés com os joelhos um pouco dobrados.",
+        "Em pe, pes juntos e bracos colados ao lado do corpo.",
+        "Pule afastando as pernas e levantando os bracos ate as maos se tocarem.",
+        "De outro pulo para voltar rapidamente a posicao inicial.",
+        "Pouse na ponta dos pes com os joelhos um pouco dobrados.",
       ],
       musculos: ["Corpo Todo", "Cardiovascular"],
-    };
-  }
-  if (nomeLower.includes("alongamento de ombros")) {
-    return {
+    }),
+    new InstrucaoRule(["alongamento de ombros"], {
       passos: [
-        "Estique o braço direito cruzando-o na frente do seu peito.",
-        "Use o braço esquerdo para puxar o braço esticado contra o seu corpo.",
+        "Estique o braco direito cruzando-o na frente do seu peito.",
+        "Use o braco esquerdo para puxar o braco esticado contra o seu corpo.",
         "Mantenha o ombro abaixado, longe da orelha.",
-        "Segure a posição e depois troque de lado.",
+        "Segure a posicao e depois troque de lado.",
       ],
-      musculos: ["Ombros", "Tríceps", "Costas"],
-    };
-  }
-  if (nomeLower.includes("quadríceps") || nomeLower.includes("quadriceps")) {
-    return {
+      musculos: ["Ombros", "Triceps", "Costas"],
+    }),
+    new InstrucaoRule(["quadriceps", "quadríceps"], {
       passos: [
-        "Em pé, segure em uma parede para não perder o equilíbrio.",
-        "Dobre o joelho para trás e segure o peito do pé com a mão.",
-        "Mantenha os joelhos colados um no outro e puxe o pé levemente.",
-        "Contraia o abdômen para não curvar a lombar.",
+        "Em pe, segure em uma parede para nao perder o equilibrio.",
+        "Dobre o joelho para tras e segure o peito do pe com a mao.",
+        "Mantenha os joelhos colados um no outro e puxe o pe levemente.",
+        "Contraia o abdomen para nao curvar a lombar.",
       ],
-      musculos: ["Quadríceps (Parte da frente da coxa)"],
-    };
-  }
-
-  // --- SUPERIORES ---
-  if (nomeLower.includes("supino")) {
-    return {
+      musculos: ["Quadriceps"],
+    }),
+    new InstrucaoRule(["supino"], {
       passos: [
-        "Deite-se no banco com os pés bem firmes no solo.",
+        "Deite-se no banco com os pes bem firmes no solo.",
         "Segure a barra ou halteres um pouco mais abertos que os ombros.",
-        "Desça o peso de forma controlada até tocar levemente o peito.",
-        "Empurre para cima estendendo os braços, sem travar os cotovelos.",
+        "Desca o peso de forma controlada ate tocar levemente o peito.",
+        "Empurre para cima estendendo os bracos, sem travar os cotovelos.",
       ],
-      musculos: ["Peitoral Maior", "Tríceps", "Deltoide Anterior"],
-    };
-  }
-  if (nomeLower.includes("puxada") || nomeLower.includes("pulldown")) {
-    return {
+      musculos: ["Peitoral Maior", "Triceps", "Deltoide Anterior"],
+    }),
+    new InstrucaoRule(["puxada", "pulldown"], {
       passos: [
         "Ajuste o rolo do aparelho para travar bem as suas coxas.",
-        "Segure a barra com os braços esticados e tronco levemente inclinado.",
-        "Puxe a barra em direção ao peito, esmagando as costas.",
-        "Retorne subindo os braços devagar, controlando o peso.",
+        "Segure a barra com os bracos esticados e tronco levemente inclinado.",
+        "Puxe a barra em direcao ao peito, esmagando as costas.",
+        "Retorne subindo os bracos devagar, controlando o peso.",
       ],
-      musculos: ["Dorsal (Costas)", "Bíceps", "Trapézio"],
-    };
-  }
-  if (nomeLower.includes("desenvolvimento")) {
-    return {
+      musculos: ["Dorsal", "Biceps", "Trapezio"],
+    }),
+    new InstrucaoRule(["desenvolvimento"], {
       passos: [
         "Sente-se num banco com encosto e segure os halteres na altura das orelhas.",
-        "Empurre os pesos para cima até quase esticar os braços.",
-        "Não deixe os halteres baterem um no outro no topo.",
-        "Desça devagar até a altura dos ombros novamente.",
+        "Empurre os pesos para cima ate quase esticar os bracos.",
+        "Nao deixe os halteres baterem um no outro no topo.",
+        "Desca devagar ate a altura dos ombros novamente.",
       ],
-      musculos: ["Deltoides (Ombros)", "Tríceps"],
-    };
-  }
-  if (nomeLower.includes("rosca")) {
-    return {
+      musculos: ["Deltoides", "Triceps"],
+    }),
+    new InstrucaoRule(["rosca"], {
       passos: [
-        "Em pé, segure os halteres com as palmas das mãos viradas para frente.",
-        "Cole os cotovelos nas costelas (não jogue para frente nem para trás).",
-        "Dobre os braços levantando os halteres até a altura dos ombros.",
-        "Desça controlando o peso até esticar o braço.",
+        "Em pe, segure os halteres com as palmas das maos viradas para frente.",
+        "Cole os cotovelos nas costelas.",
+        "Dobre os bracos levantando os halteres ate a altura dos ombros.",
+        "Desca controlando o peso ate esticar o braco.",
       ],
-      musculos: ["Bíceps", "Antebraços"],
-    };
-  }
-  if (
-    nomeLower.includes("polia") &&
-    (nomeLower.includes("tríceps") || nomeLower.includes("triceps"))
-  ) {
-    return {
+      musculos: ["Biceps", "Antebracos"],
+    }),
+    new InstrucaoRule(["polia", "triceps", "tríceps"], {
       passos: [
-        "Fique em pé de frente para a polia e segure a barra.",
+        "Fique em pe de frente para a polia e segure a barra.",
         "Incline o corpo levemente e trave os cotovelos na cintura.",
-        "Empurre a barra para baixo até esticar totalmente os braços.",
-        "Volte dobrando o braço até formar um ângulo de 90 graus.",
+        "Empurre a barra para baixo ate esticar totalmente os bracos.",
+        "Volte dobrando o braco ate formar um angulo de 90 graus.",
       ],
-      musculos: ["Tríceps"],
-    };
-  }
-
-  // --- INFERIORES ---
-  if (nomeLower.includes("agachamento livre")) {
-    return {
+      musculos: ["Triceps"],
+    }),
+    new InstrucaoRule(["agachamento livre"], {
       passos: [
-        "Pés na largura dos ombros, apontando levemente para fora.",
-        "Desça jogando o quadril para trás, como se fosse sentar em uma cadeira.",
-        "Mantenha o peito aberto e o abdômen contraído.",
-        "Suba empurrando o chão com os calcanhares.",
+        "Pes na largura dos ombros, apontando levemente para fora.",
+        "Desca jogando o quadril para tras, como se fosse sentar em uma cadeira.",
+        "Mantenha o peito aberto e o abdomen contraido.",
+        "Suba empurrando o chao com os calcanhares.",
       ],
-      musculos: ["Quadríceps", "Glúteos", "Posteriores de Coxa"],
-    };
-  }
-  if (nomeLower.includes("leg press")) {
-    return {
+      musculos: ["Quadriceps", "Gluteos", "Posteriores de Coxa"],
+    }),
+    new InstrucaoRule(["leg press"], {
       passos: [
-        "Sente-se no aparelho e apoie os pés na plataforma na largura dos ombros.",
-        "Destrave a máquina e desça o peso dobrando os joelhos.",
-        "Abaixe até formar um ângulo de 90 graus.",
-        "Empurre de volta, mas nunca estique os joelhos 100% até travar.",
+        "Sente-se no aparelho e apoie os pes na plataforma na largura dos ombros.",
+        "Destrave a maquina e desca o peso dobrando os joelhos.",
+        "Abaixe ate formar um angulo de 90 graus.",
+        "Empurre de volta sem travar totalmente os joelhos.",
       ],
-      musculos: ["Quadríceps", "Glúteos", "Posteriores"],
-    };
-  }
-  if (nomeLower.includes("extensora")) {
-    return {
+      musculos: ["Quadriceps", "Gluteos", "Posteriores"],
+    }),
+    new InstrucaoRule(["extensora"], {
       passos: [
-        "Sente-se na máquina com as costas apoiadas e o rolo acima do peito do pé.",
-        "Segure firme nas alças laterais para não levantar o quadril.",
+        "Sente-se na maquina com as costas apoiadas e o rolo acima do peito do pe.",
+        "Segure firme nas alcas laterais para nao levantar o quadril.",
         "Chute o peso para cima esticando as pernas e segure 1 segundo no alto.",
-        "Desça bem devagar, resistindo ao peso da máquina.",
+        "Desca bem devagar, resistindo ao peso da maquina.",
       ],
-      musculos: ["Quadríceps (Parte da frente da coxa)"],
-    };
-  }
-  if (nomeLower.includes("búlgaro") || nomeLower.includes("bulgaro")) {
-    return {
+      musculos: ["Quadriceps"],
+    }),
+    new InstrucaoRule(["bulgaro", "búlgaro"], {
       passos: [
-        "Fique em pé de costas para um banco e apoie o peito do pé de trás nele.",
+        "Fique em pe de costas para um banco e apoie o peito do pe de tras nele.",
         "Incline o tronco levemente para frente.",
         "Dobre o joelho da frente descendo o quadril em linha reta.",
-        "Pare quando o joelho de trás quase tocar o chão e suba novamente.",
+        "Pare quando o joelho de tras quase tocar o chao e suba novamente.",
       ],
-      musculos: ["Glúteos", "Quadríceps"],
-    };
-  }
-  if (nomeLower.includes("pélvica") || nomeLower.includes("pelvica")) {
-    return {
+      musculos: ["Gluteos", "Quadriceps"],
+    }),
+    new InstrucaoRule(["pelvica", "pélvica"], {
       passos: [
-        "Apoiando apenas as escápulas no banco, deixe os pés firmes no chão.",
-        "Empurre o chão com os calcanhares e levante o quadril.",
-        "Esprema os glúteos lá em cima por 2 segundos.",
-        "Desça o quadril lentamente. O queixo deve acompanhar o movimento do peito.",
+        "Apoiando apenas as escapulas no banco, deixe os pes firmes no chao.",
+        "Empurre o chao com os calcanhares e levante o quadril.",
+        "Esprema os gluteos em cima por 2 segundos.",
+        "Desca o quadril lentamente.",
       ],
-      musculos: ["Glúteos Máximos", "Posteriores de Coxa"],
-    };
-  }
-  if (nomeLower.includes("flexora")) {
-    return {
+      musculos: ["Gluteos Maximos", "Posteriores de Coxa"],
+    }),
+    new InstrucaoRule(["flexora"], {
       passos: [
         "Deite de barriga para baixo e ajuste o rolo acima dos calcanhares.",
-        "Segure firme nas alças do aparelho.",
-        "Dobre os joelhos puxando o peso em direção ao bumbum.",
-        "Retorne descendo as pernas bem devagar. Não deixe o quadril descolar do banco.",
+        "Segure firme nas alcas do aparelho.",
+        "Dobre os joelhos puxando o peso em direcao ao bumbum.",
+        "Retorne descendo as pernas bem devagar.",
       ],
-      musculos: [
-        "Posteriores de Coxa (Parte de trás da perna)",
-        "Panturrilhas",
-      ],
-    };
-  }
-
-  // --- CARDIO E ABDÔMEN ---
-  if (nomeLower.includes("esteira") || nomeLower.includes("corrida")) {
-    return {
+      musculos: ["Posteriores de Coxa", "Panturrilhas"],
+    }),
+    new InstrucaoRule(["esteira", "corrida"], {
       passos: [
-        "Inicie com uma caminhada leve para aquecer as articulações.",
+        "Inicie com uma caminhada leve para aquecer as articulacoes.",
         "Aumente a velocidade para o seu ritmo de corrida.",
-        "Mantenha a postura ereta e os braços balançando como um pêndulo.",
-        "Pise preferencialmente com o meio do pé para amortecer o impacto.",
+        "Mantenha a postura ereta e os bracos balancando naturalmente.",
+        "Pise preferencialmente com o meio do pe para amortecer o impacto.",
       ],
       musculos: ["Cardiovascular", "Pernas completas"],
-    };
-  }
-  if (nomeLower.includes("abdominal") || nomeLower.includes("supra")) {
-    return {
+    }),
+    new InstrucaoRule(["abdominal", "supra"], {
       passos: [
-        "Deite de costas com os joelhos dobrados e pés no chão.",
-        "Coloque as mãos ao lado da cabeça (sem puxar o pescoço).",
-        "Tire apenas os ombros do chão espremendo forte a barriga.",
-        "Olhe sempre para o teto e desça devagar.",
+        "Deite de costas com os joelhos dobrados e pes no chao.",
+        "Coloque as maos ao lado da cabeca sem puxar o pescoco.",
+        "Tire apenas os ombros do chao espremendo forte a barriga.",
+        "Olhe para o teto e desca devagar.",
       ],
-      musculos: ["Abdômen Reto"],
+      musculos: ["Abdomen Reto"],
+    }),
+  ];
+
+  obter(nome: string): DetalhesInstrucao {
+    return (
+      this.rules.find((rule) => rule.matches(nome))?.instrucao || {
+        passos: [
+          "Prepare o posicionamento inicial mantendo a coluna ereta.",
+          "Execute o movimento principal focando na contracao muscular.",
+          "Retorne a posicao inicial segurando o peso de forma controlada.",
+        ],
+        musculos: ["Musculo Principal"],
+      }
+    );
+  }
+}
+
+class SeriesRepFormatter {
+  constructor(private readonly value: string) {}
+
+  get series() {
+    return this.parts[0] || this.value;
+  }
+
+  get repeticoes() {
+    return this.parts[1] || "";
+  }
+
+  private get parts() {
+    return this.value.includes("•")
+      ? this.value.split("•")
+      : this.value.split("-");
+  }
+}
+
+interface DetalhesState {
+  tempo: number;
+  ativo: boolean;
+  salvando: boolean;
+}
+
+class DetalhesExercicioScreen extends Component<
+  LocalSearchParamsProps,
+  DetalhesState
+> {
+  private readonly paramReader: LocalSearchParamReader;
+  private readonly instrucaoService = new InstrucaoExercicioService();
+  private readonly historicoService = new HistoricoExercicioService();
+  private intervalo?: ReturnType<typeof setInterval>;
+
+  constructor(props: LocalSearchParamsProps) {
+    super(props);
+
+    this.paramReader = new LocalSearchParamReader(props.params);
+    this.state = {
+      tempo: 60,
+      ativo: false,
+      salvando: false,
     };
   }
 
-  // Caso o exercício seja novo e não caia em nenhuma regra acima
-  return {
-    passos: [
-      "Prepare o posicionamento inicial mantendo a coluna ereta.",
-      "Execute o movimento principal focando na contração muscular.",
-      "Retorne à posição inicial segurando o peso de forma controlada.",
-    ],
-    musculos: ["Músculo Principal"],
-  };
-};
-
-export default function DetalhesExercicioScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-
-  const idExercicio = params.id as string; // Pegando o ID!
-  const nomeExercicio = (params.nome as string) || "Exercício";
-  const grupoMuscular = (params.grupo as string) || "Geral";
-  const instrucoesBase =
-    (params.instrucoes as string) ||
-    "Siga o passo a passo abaixo para a execução correta.";
-  const seriesFixas = (params.seriesRep as string) || "4 séries • 12 rep";
-
-  const detalhesDinamicos = obterInstrucoesDetalhadas(nomeExercicio);
-
-  const [tempo, setTempo] = useState<number>(60);
-  const [ativo, setAtivo] = useState<boolean>(false);
-  const [salvando, setSalvando] = useState<boolean>(false);
-
-  useEffect(() => {
-    let intervalo: any = null;
-    if (ativo && tempo > 0) {
-      intervalo = setInterval(() => {
-        setTempo((t) => t - 1);
-      }, 1000);
-    } else if (tempo === 0) {
-      setAtivo(false);
-      clearInterval(intervalo);
+  componentDidUpdate(_: LocalSearchParamsProps, prevState: DetalhesState) {
+    if (
+      prevState.ativo !== this.state.ativo ||
+      prevState.tempo !== this.state.tempo
+    ) {
+      this.sincronizarTimer();
     }
-    return () => clearInterval(intervalo);
-  }, [ativo, tempo]);
+  }
 
-  const handleConcluirExercicio = async () => {
+  componentWillUnmount() {
+    this.pararTimer();
+  }
+
+  private get idExercicio() {
+    return this.paramReader.get("id");
+  }
+
+  private get nomeExercicio() {
+    return this.paramReader.get("nome", "Exercicio");
+  }
+
+  private get grupoMuscular() {
+    return this.paramReader.get("grupo", "Geral");
+  }
+
+  private get instrucoesBase() {
+    return this.paramReader.get(
+      "instrucoes",
+      "Siga o passo a passo abaixo para a execucao correta.",
+    );
+  }
+
+  private get seriesFixas() {
+    return this.paramReader.get("seriesRep", "4 series - 12 rep");
+  }
+
+  private pararTimer() {
+    if (this.intervalo) {
+      clearInterval(this.intervalo);
+      this.intervalo = undefined;
+    }
+  }
+
+  private sincronizarTimer() {
+    this.pararTimer();
+
+    if (this.state.ativo && this.state.tempo > 0) {
+      this.intervalo = setInterval(() => {
+        this.setState((estadoAtual) => ({
+          tempo: Math.max(estadoAtual.tempo - 1, 0),
+        }));
+      }, 1000);
+      return;
+    }
+
+    if (this.state.tempo === 0 && this.state.ativo) {
+      this.setState({ ativo: false });
+    }
+  }
+
+  private handleConcluirExercicio = async () => {
     try {
-      setSalvando(true);
+      this.setState({ salvando: true });
 
-      // NOVO: Salvando na memória do celular que esse exercício foi feito
-      if (idExercicio) {
+      if (this.idExercicio) {
         const concluidosSalvos = await AsyncStorage.getItem(
           "exerciciosConcluidos",
         );
-        let listaConcluidos = concluidosSalvos
+        const listaConcluidos = concluidosSalvos
           ? JSON.parse(concluidosSalvos)
           : [];
 
-        if (!listaConcluidos.includes(idExercicio)) {
-          listaConcluidos.push(idExercicio);
+        if (!listaConcluidos.includes(this.idExercicio)) {
+          listaConcluidos.push(this.idExercicio);
           await AsyncStorage.setItem(
             "exerciciosConcluidos",
             JSON.stringify(listaConcluidos),
@@ -317,9 +350,11 @@ export default function DetalhesExercicioScreen() {
       }
 
       const user = auth.currentUser;
+
       if (user) {
         const hoje = new Date().toISOString().split("T")[0];
         const userRef = doc(db, "users", user.uid);
+        const seriesRep = new SeriesRepFormatter(this.seriesFixas);
 
         await setDoc(
           userRef,
@@ -330,126 +365,155 @@ export default function DetalhesExercicioScreen() {
           },
           { merge: true },
         );
+
+        await this.historicoService.registrarConclusao({
+          exercicioId: this.idExercicio || null,
+          nomeExercicio: this.nomeExercicio,
+          grupoMuscular: this.grupoMuscular,
+          dataExecucao: hoje,
+          series: seriesRep.series,
+          repeticoes: seriesRep.repeticoes,
+        });
       }
 
-      alert(`Exercício "${nomeExercicio}" marcado como feito! 🔥🏃‍♀️`);
+      alert(`Exercicio "${this.nomeExercicio}" marcado como feito!`);
       router.back();
     } catch (error: any) {
-      console.error("Erro ao salvar conclusão do exercício:", error);
+      console.error("Erro ao salvar conclusao do exercicio:", error);
       alert("Erro ao salvar: " + error.message);
     } finally {
-      setSalvando(false);
+      this.setState({ salvando: false });
     }
   };
 
-  const formatarTempo = (segundos: number): string => {
+  private formatarTempo(segundos: number): string {
     const mins = Math.floor(segundos / 60);
     const segs = segundos % 60;
+
     return `${mins}:${segs < 10 ? "0" : ""}${segs}`;
+  }
+
+  private aumentarTempo = () => {
+    this.setState((estadoAtual) => ({ tempo: estadoAtual.tempo + 15 }));
   };
 
-  const aumentarTempo = () => setTempo((t) => t + 15);
-  const diminuirTempo = () => setTempo((t) => (t - 15 < 0 ? 0 : t - 15));
+  private diminuirTempo = () => {
+    this.setState((estadoAtual) => ({
+      tempo: Math.max(estadoAtual.tempo - 15, 0),
+    }));
+  };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerLaranja}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalhes do exercício</Text>
-        <View style={{ width: 24 }} />
-      </View>
+  private alternarTimer = () => {
+    this.setState((estadoAtual) => ({ ativo: !estadoAtual.ativo }));
+  };
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.bigHalterContainer}>
-          <View style={styles.bigHalterBox}>
-            <MaterialCommunityIcons name="dumbbell" size={64} color="#FFF" />
-          </View>
-          <Text style={styles.exerciseNameText}>{nomeExercicio}</Text>
-          <Text style={styles.exerciseGroupText}>{grupoMuscular}</Text>
+  private reiniciarTimer = () => {
+    this.setState({ ativo: false, tempo: 60 });
+  };
+
+  render() {
+    const { tempo, ativo, salvando } = this.state;
+    const detalhesDinamicos = this.instrucaoService.obter(this.nomeExercicio);
+    const seriesRep = new SeriesRepFormatter(this.seriesFixas);
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerLaranja}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalhes do exercicio</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Ionicons name="layers-outline" size={20} color="#F28C1B" />
-            <Text style={styles.statValue}>{seriesFixas.split("•")[0]}</Text>
-            <Text style={styles.statLabel}>Séries</Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.bigHalterContainer}>
+            <View style={styles.bigHalterBox}>
+              <MaterialCommunityIcons name="dumbbell" size={64} color="#FFF" />
+            </View>
+            <Text style={styles.exerciseNameText}>{this.nomeExercicio}</Text>
+            <Text style={styles.exerciseGroupText}>{this.grupoMuscular}</Text>
           </View>
 
-          <View style={styles.statItemTimer}>
-            <View style={styles.timerControlesRow}>
-              <TouchableOpacity onPress={diminuirTempo}>
-                <Ionicons
-                  name="remove-circle-outline"
-                  size={24}
-                  color="#F28C1B"
-                />
-              </TouchableOpacity>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Ionicons name="layers-outline" size={20} color="#F28C1B" />
+              <Text style={styles.statValue}>{seriesRep.series}</Text>
+              <Text style={styles.statLabel}>Series</Text>
+            </View>
 
-              <TouchableOpacity
-                onPress={() => setAtivo(!ativo)}
-                onLongPress={() => {
-                  setAtivo(false);
-                  setTempo(60);
-                }}
-                delayLongPress={400}
-                style={[styles.timerCirculo, ativo && styles.timerCirculoAtivo]}
-              >
-                <Text
-                  style={[styles.timerTexto, ativo && styles.timerTextoAtivo]}
+            <View style={styles.statItemTimer}>
+              <View style={styles.timerControlesRow}>
+                <TouchableOpacity onPress={this.diminuirTempo}>
+                  <Ionicons
+                    name="remove-circle-outline"
+                    size={24}
+                    color="#F28C1B"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={this.alternarTimer}
+                  onLongPress={this.reiniciarTimer}
+                  delayLongPress={400}
+                  style={[styles.timerCirculo, ativo && styles.timerCirculoAtivo]}
                 >
-                  {formatarTempo(tempo)}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[styles.timerTexto, ativo && styles.timerTextoAtivo]}
+                  >
+                    {this.formatarTempo(tempo)}
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity onPress={aumentarTempo}>
-                <Ionicons name="add-circle-outline" size={24} color="#F28C1B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.statLabel}>Descanso</Text>
-          </View>
-
-          <View style={styles.statItem}>
-            <Ionicons name="repeat-outline" size={20} color="#F28C1B" />
-            <Text style={styles.statValue}>{seriesFixas.split("•")[1]}</Text>
-            <Text style={styles.statLabel}>Reps</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Descrição</Text>
-          <Text style={styles.descriptionText}>{instrucoesBase}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Execução passo a passo</Text>
-          {detalhesDinamicos.passos.map((passo, index) => (
-            <View key={index} style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
+                <TouchableOpacity onPress={this.aumentarTempo}>
+                  <Ionicons name="add-circle-outline" size={24} color="#F28C1B" />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.stepText}>{passo}</Text>
+              <Text style={styles.statLabel}>Descanso</Text>
             </View>
-          ))}
-        </View>
 
-        <TouchableOpacity
-          style={[styles.btnAction, salvando && { opacity: 0.7 }]}
-          onPress={handleConcluirExercicio}
-          disabled={salvando}
-        >
-          {salvando ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.btnActionText}>Concluir este Exercício 💪</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
-  );
+            <View style={styles.statItem}>
+              <Ionicons name="repeat-outline" size={20} color="#F28C1B" />
+              <Text style={styles.statValue}>{seriesRep.repeticoes}</Text>
+              <Text style={styles.statLabel}>Reps</Text>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Descricao</Text>
+            <Text style={styles.descriptionText}>{this.instrucoesBase}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Execucao passo a passo</Text>
+            {detalhesDinamicos.passos.map((passo, index) => (
+              <View key={index} style={styles.stepRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.stepText}>{passo}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.btnAction, salvando && { opacity: 0.7 }]}
+            onPress={this.handleConcluirExercicio}
+            disabled={salvando}
+          >
+            {salvando ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={styles.btnActionText}>Concluir este Exercicio</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 }
+
+export default LocalSearchParamsAdapter.connect(DetalhesExercicioScreen);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },

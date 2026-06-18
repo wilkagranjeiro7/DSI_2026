@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, Unsubscribe } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import React, { Component } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,6 @@ import {
   View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
-
 import PerfilCard from "../src/components/perfil/PerfilCard";
 import PerfilForm from "../src/components/perfil/PerfilForm";
 import Perfil, { PerfilFormulario } from "../src/models/Perfil";
@@ -36,63 +35,109 @@ const formInicial: PerfilFormulario = {
   observacoes: "",
 };
 
-export default function PerfilScreen() {
-  const perfilService = useMemo(() => new PerfilService(), []);
+interface PerfilState {
+  perfil: Perfil | null;
+  form: PerfilFormulario;
+  editando: boolean;
+  carregando: boolean;
+  erro: string;
+  uploadingImage: boolean;
+  toastVisivel: boolean;
+  toastMensagem: string;
+}
 
-  const [perfil, setPerfil] = useState<Perfil | null>(null);
-  const [form, setForm] = useState<PerfilFormulario>({ ...formInicial });
-  const [editando, setEditando] = useState(false);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState("");
+class PerfilFormMapper {
+  static fromPerfil(perfilAtual: Perfil): PerfilFormulario {
+    return {
+      nome: perfilAtual.nome,
+      email: perfilAtual.email,
+      telefone: perfilAtual.telefone,
+      idade: String(perfilAtual.idade || ""),
+      peso: String(perfilAtual.peso || ""),
+      altura: String(perfilAtual.altura || ""),
+      objetivo: perfilAtual.objetivo,
+      nivel: perfilAtual.nivel,
+      observacoes: perfilAtual.observacoes,
+      photoUrl: perfilAtual.photoUrl,
+    };
+  }
+}
 
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [toastVisivel, setToastVisivel] = useState(false);
-  const [toastMensagem, setToastMensagem] = useState("");
+class PerfilScreen extends Component<object, PerfilState> {
+  private readonly perfilService = new PerfilService();
+  private unsubscribeAuth?: Unsubscribe;
+  private toastTimer?: ReturnType<typeof setTimeout>;
 
-  const mostrarAvisoDiscreto = (mensagem: string) => {
-    setToastMensagem(mensagem);
-    setToastVisivel(true);
-    setTimeout(() => setToastVisivel(false), 3000);
+  state: PerfilState = {
+    perfil: null,
+    form: { ...formInicial },
+    editando: false,
+    carregando: true,
+    erro: "",
+    uploadingImage: false,
+    toastVisivel: false,
+    toastMensagem: "",
   };
 
-  async function carregarPerfil() {
-    try {
-      setCarregando(true);
-      const perfilEncontrado = await perfilService.buscarPerfil();
-      setPerfil(perfilEncontrado);
-
-      if (!perfilEncontrado) {
-        setEditando(true);
+  componentDidMount() {
+    this.unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        this.carregarPerfil();
       } else {
-        setEditando(false);
+        this.setState({ carregando: false });
       }
-      setErro("");
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao carregar perfil.");
-    } finally {
-      setCarregando(false);
+    });
+  }
+
+  componentWillUnmount() {
+    this.unsubscribeAuth?.();
+
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
     }
   }
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        carregarPerfil();
-      } else {
-        setCarregando(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  private mostrarAvisoDiscreto = (mensagem: string) => {
+    this.setState({ toastMensagem: mensagem, toastVisivel: true });
 
-  const escolherEEnviarImagem = async () => {
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+
+    this.toastTimer = setTimeout(() => {
+      this.setState({ toastVisivel: false });
+    }, 3000);
+  };
+
+  private carregarPerfil = async () => {
+    try {
+      this.setState({ carregando: true });
+      const perfilEncontrado = await this.perfilService.buscarPerfil();
+
+      this.setState({
+        perfil: perfilEncontrado,
+        editando: !perfilEncontrado,
+        erro: "",
+      });
+    } catch (error) {
+      this.setState({
+        erro:
+          error instanceof Error ? error.message : "Erro ao carregar perfil.",
+      });
+    } finally {
+      this.setState({ carregando: false });
+    }
+  };
+
+  private escolherEEnviarImagem = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
     if (status !== "granted") {
-      mostrarAvisoDiscreto("Precisamos de permissão para acessar suas fotos.");
+      this.mostrarAvisoDiscreto("Precisamos de permissao para acessar suas fotos.");
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
@@ -104,7 +149,7 @@ export default function PerfilScreen() {
     }
 
     try {
-      setUploadingImage(true);
+      this.setState({ uploadingImage: true });
       let user = auth.currentUser;
 
       if (!user) {
@@ -113,7 +158,7 @@ export default function PerfilScreen() {
       }
 
       if (!user) {
-        mostrarAvisoDiscreto("Usuário não autenticado.");
+        this.mostrarAvisoDiscreto("Usuario nao autenticado.");
         return;
       }
 
@@ -121,7 +166,6 @@ export default function PerfilScreen() {
       const base64 = await FileSystem.readAsStringAsync(localUri, {
         encoding: "base64",
       });
-      
       const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
       const fileExtension = localUri.split(".").pop();
       const fileName = `${user.uid}/avatar.${fileExtension}`;
@@ -133,7 +177,9 @@ export default function PerfilScreen() {
           upsert: true,
         });
 
-      if (uploadError) throw new Error(uploadError.message);
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
 
       const { data: publicUrlData } = supabase.storage
         .from("avatars")
@@ -142,43 +188,43 @@ export default function PerfilScreen() {
       const publicUrl = publicUrlData.publicUrl;
 
       await setDoc(doc(db, "users", user.uid), { photoUrl: publicUrl }, { merge: true });
-      await setDoc(doc(db, "perfis", user.uid), { photoUrl: publicUrl }, { merge: true });
+      await setDoc(
+        doc(db, "perfis", user.uid),
+        { photoUrl: publicUrl },
+        { merge: true },
+      );
 
-      mostrarAvisoDiscreto("Foto de perfil atualizada com sucesso! ✨");
-      await carregarPerfil();
+      this.mostrarAvisoDiscreto("Foto de perfil atualizada com sucesso!");
+      await this.carregarPerfil();
     } catch (error: any) {
       console.error(error);
-      mostrarAvisoDiscreto("Erro ao salvar imagem.");
+      this.mostrarAvisoDiscreto("Erro ao salvar imagem.");
     } finally {
-      setUploadingImage(false);
+      this.setState({ uploadingImage: false });
     }
   };
 
-  function alterarCampo(campo: keyof PerfilFormulario, valor: string) {
-    setForm((estadoAtual) => ({
-      ...estadoAtual,
-      [campo]: valor,
+  private alterarCampo = (campo: keyof PerfilFormulario, valor: string) => {
+    this.setState((estadoAtual) => ({
+      form: {
+        ...estadoAtual.form,
+        [campo]: valor,
+      },
     }));
-  }
+  };
 
-  function preencherFormulario(perfilAtual: Perfil) {
-    setForm({
-      nome: perfilAtual.nome,
-      email: perfilAtual.email,
-      telefone: perfilAtual.telefone,
-      idade: String(perfilAtual.idade || ""),
-      peso: String(perfilAtual.peso || ""),
-      altura: String(perfilAtual.altura || ""),
-      objetivo: perfilAtual.objetivo,
-      nivel: perfilAtual.nivel,
-      observacoes: perfilAtual.observacoes,
+  private preencherFormulario = (perfilAtual: Perfil) => {
+    this.setState({
+      form: PerfilFormMapper.fromPerfil(perfilAtual),
+      editando: true,
     });
-    setEditando(true);
-  }
+  };
 
-  async function salvarPerfil() {
+  private salvarPerfil = async () => {
+    const { form, perfil } = this.state;
+
     try {
-      const dadosParaSalvar: any = {
+      const dadosParaSalvar = {
         nome: form.nome,
         email: form.email,
         telefone: form.telefone,
@@ -188,103 +234,140 @@ export default function PerfilScreen() {
         objetivo: form.objetivo,
         nivel: form.nivel,
         observacoes: form.observacoes,
+        photoUrl: perfil?.photoUrl || form.photoUrl,
       };
 
-      if (perfil && (perfil as any).photoUrl) {
-        dadosParaSalvar.photoUrl = (perfil as any).photoUrl;
-      }
-
-      await perfilService.salvarPerfil(dadosParaSalvar);
-      mostrarAvisoDiscreto("Perfil salvo com sucesso!");
-      await carregarPerfil();
+      await this.perfilService.salvarPerfil(dadosParaSalvar);
+      this.mostrarAvisoDiscreto("Perfil salvo com sucesso!");
+      await this.carregarPerfil();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao salvar perfil.");
+      this.setState({
+        erro: error instanceof Error ? error.message : "Erro ao salvar perfil.",
+      });
     }
-  }
+  };
 
-  function confirmarExclusao() {
-    Alert.alert("Excluir perfil", "Tem certeza que deseja excluir os dados do perfil?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Excluir", style: "destructive", onPress: excluirPerfil },
-    ]);
-  }
+  private confirmarExclusao = () => {
+    Alert.alert(
+      "Excluir perfil",
+      "Tem certeza que deseja excluir os dados do perfil?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Excluir", style: "destructive", onPress: this.excluirPerfil },
+      ],
+    );
+  };
 
-  async function excluirPerfil() {
+  private excluirPerfil = async () => {
     try {
-      await perfilService.excluirPerfil();
-      setPerfil(null);
-      setForm({ ...formInicial });
-      setEditando(true);
-      mostrarAvisoDiscreto("Perfil excluído.");
+      await this.perfilService.excluirPerfil();
+      this.setState({
+        perfil: null,
+        form: { ...formInicial },
+        editando: true,
+      });
+      this.mostrarAvisoDiscreto("Perfil excluido.");
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao excluir perfil.");
+      this.setState({
+        erro: error instanceof Error ? error.message : "Erro ao excluir perfil.",
+      });
     }
-  }
+  };
 
-  function cancelarEdicao() {
-    if (perfil) {
-      setEditando(false);
-      setErro("");
+  private cancelarEdicao = () => {
+    if (this.state.perfil) {
+      this.setState({ editando: false, erro: "" });
       return;
     }
-    setForm({ ...formInicial });
+
+    this.setState({ form: { ...formInicial } });
+  };
+
+  private renderConteudo() {
+    const { perfil, form, erro, carregando, editando, uploadingImage } =
+      this.state;
+
+    if (carregando) {
+      return (
+        <ActivityIndicator
+          size="small"
+          color="#FF8500"
+          style={{ marginTop: 20 }}
+        />
+      );
+    }
+
+    if (editando) {
+      return (
+        <PerfilForm
+          form={form}
+          erro={erro}
+          onChange={this.alterarCampo}
+          onSubmit={this.salvarPerfil}
+          onCancel={this.cancelarEdicao}
+        />
+      );
+    }
+
+    if (perfil) {
+      return (
+        <PerfilCard
+          perfil={perfil}
+          onEditar={() => this.preencherFormulario(perfil)}
+          onExcluir={this.confirmarExclusao}
+          onTrocarFoto={this.escolherEEnviarImagem}
+          carregandoFoto={uploadingImage}
+        />
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={() => this.setState({ editando: true })}
+      >
+        <Text style={styles.createButtonText}>Criar perfil</Text>
+      </TouchableOpacity>
+    );
   }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>FitMatch</Text>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
-        </View>
+  render() {
+    const { erro, toastVisivel, toastMensagem } = this.state;
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.title}>Perfil</Text>
-          <Text style={styles.subtitle}>Gerencie suas informações</Text>
-
-          {erro ? <Text style={styles.error}>{erro}</Text> : null}
-
-          {carregando ? (
-            <ActivityIndicator size="small" color="#FF8500" style={{ marginTop: 20 }} />
-          ) : editando ? (
-            <PerfilForm
-              form={form}
-              erro={erro}
-              onChange={alterarCampo}
-              onSubmit={salvarPerfil}
-              onCancel={cancelarEdicao}
-            />
-          ) : perfil ? (
-            // 🔥 PASSADO AQUI: Injeta a função e o estado de carregamento para dentro do card
-            <PerfilCard
-              perfil={perfil}
-              onEditar={() => preencherFormulario(perfil)}
-              onExcluir={confirmarExclusao}
-              onTrocarFoto={escolherEEnviarImagem}
-              carregandoFoto={uploadingImage}
-            />
-          ) : (
-            <TouchableOpacity style={styles.createButton} onPress={() => setEditando(true)}>
-              <Text style={styles.createButtonText}>Criar perfil</Text>
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
-        </ScrollView>
-
-        <BottomNavbar active="perfil" />
-
-        {toastVisivel && (
-          <View style={styles.toastCard}>
-            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-            <Text style={styles.toastText}>{toastMensagem}</Text>
+            <Text style={styles.headerTitle}>FitMatch</Text>
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
           </View>
-        )}
-      </View>
-    </SafeAreaView>
-  );
+
+          <ScrollView contentContainerStyle={styles.content}>
+            <Text style={styles.title}>Perfil</Text>
+            <Text style={styles.subtitle}>Gerencie suas informacoes</Text>
+
+            {erro ? <Text style={styles.error}>{erro}</Text> : null}
+            {this.renderConteudo()}
+          </ScrollView>
+
+          <BottomNavbar active="perfil" />
+
+          {toastVisivel && (
+            <View style={styles.toastCard}>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <Text style={styles.toastText}>{toastMensagem}</Text>
+            </View>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
+
+export default PerfilScreen;
 
 const styles = StyleSheet.create({
   safeArea: {

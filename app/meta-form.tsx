@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
+import React, { Component } from "react";
 import {
-  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,10 @@ import {
 
 import MetaForm from "../src/components/metas/MetaForm";
 import { MetaFormulario } from "../src/models/Meta";
+import LocalSearchParamsAdapter, {
+  LocalSearchParamReader,
+  LocalSearchParamsProps,
+} from "../src/navigation/LocalSearchParamsAdapter";
 import MetaService from "../src/services/MetaService";
 
 const formInicial: MetaFormulario = {
@@ -27,34 +30,54 @@ const formInicial: MetaFormulario = {
   relacionadoId: "",
 };
 
-export default function MetaFormScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
-  const metaService = useMemo(() => new MetaService(), []);
+interface MetaFormState {
+  form: MetaFormulario;
+  erro: string;
+  carregando: boolean;
+  salvando: boolean;
+}
 
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+class MetaFormScreen extends Component<LocalSearchParamsProps, MetaFormState> {
+  private readonly metaService = new MetaService();
+  private readonly paramReader: LocalSearchParamReader;
 
-  const [form, setForm] = useState<MetaFormulario>({ ...formInicial });
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
-  const [salvando, setSalvando] = useState(false);
+  constructor(props: LocalSearchParamsProps) {
+    super(props);
 
-  useEffect(() => {
-    async function carregarMetaParaEditar() {
-      if (!id) {
+    this.paramReader = new LocalSearchParamReader(props.params);
+    this.state = {
+      form: { ...formInicial },
+      erro: "",
+      carregando: false,
+      salvando: false,
+    };
+  }
+
+  componentDidMount() {
+    this.carregarMetaParaEditar();
+  }
+
+  private get id() {
+    return this.paramReader.get("id") || null;
+  }
+
+  private carregarMetaParaEditar = async () => {
+    if (!this.id) {
+      return;
+    }
+
+    try {
+      this.setState({ carregando: true });
+
+      const meta = await this.metaService.buscarMeta(this.id);
+
+      if (!meta) {
+        this.setState({ erro: "Meta nao encontrada." });
         return;
       }
 
-      try {
-        setCarregando(true);
-
-        const meta = await metaService.buscarMeta(id);
-
-        if (!meta) {
-          setErro("Meta não encontrada.");
-          return;
-        }
-
-        setForm({
+      this.setState({
+        form: {
           titulo: meta.titulo,
           categoria: meta.categoria,
           valorAtual: String(meta.valorAtual),
@@ -64,30 +87,34 @@ export default function MetaFormScreen() {
           observacoes: meta.observacoes,
           relacionadoTipo: meta.relacionadoTipo || "",
           relacionadoId: meta.relacionadoId || "",
-        });
-      } catch (error) {
-        setErro(error instanceof Error ? error.message : "Erro ao carregar meta.");
-      } finally {
-        setCarregando(false);
-      }
+        },
+      });
+    } catch (error) {
+      this.setState({
+        erro: error instanceof Error ? error.message : "Erro ao carregar meta.",
+      });
+    } finally {
+      this.setState({ carregando: false });
     }
+  };
 
-    carregarMetaParaEditar();
-  }, [id]);
-
-  function alterarCampo(campo: keyof MetaFormulario, valor: string) {
-    setForm((estadoAtual: MetaFormulario) => ({
-      ...estadoAtual,
-      [campo]: valor,
+  private alterarCampo = (campo: keyof MetaFormulario, valor: string) => {
+    this.setState((estadoAtual) => ({
+      form: {
+        ...estadoAtual.form,
+        [campo]: valor,
+      },
     }));
-  }
+  };
 
-  async function salvarMeta() {
+  private salvarMeta = async () => {
+    const { form } = this.state;
+
     try {
-      setSalvando(true);
+      this.setState({ salvando: true });
 
-      await metaService.salvarMeta({
-        id: id || null,
+      await this.metaService.salvarMeta({
+        id: this.id,
         titulo: form.titulo,
         categoria: form.categoria,
         valorAtual: form.valorAtual,
@@ -101,57 +128,61 @@ export default function MetaFormScreen() {
 
       router.replace("/metas");
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao salvar meta.");
+      this.setState({
+        erro: error instanceof Error ? error.message : "Erro ao salvar meta.",
+      });
     } finally {
-      setSalvando(false);
+      this.setState({ salvando: false });
     }
-  }
+  };
 
-  function cancelar() {
+  private cancelar = () => {
     router.replace("/metas");
-  }
+  };
 
-  if (carregando) {
+  render() {
+    const { form, erro, carregando, salvando } = this.state;
+
+    if (carregando) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.container}>
+            <Text style={styles.loading}>Carregando meta...</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
-          <Text style={styles.loading}>Carregando meta...</Text>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.replace("/metas")}>
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <Text style={styles.headerTitle}>FitMatch</Text>
+
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
+          </View>
+
+          <ScrollView contentContainerStyle={styles.content}>
+            <MetaForm
+              form={form}
+              editandoId={this.id}
+              erro={salvando ? "Salvando meta..." : erro}
+              onChange={this.alterarCampo}
+              onSubmit={this.salvarMeta}
+              onCancel={this.cancelar}
+            />
+          </ScrollView>
         </View>
       </SafeAreaView>
     );
   }
-
-  if (salvando) {
-    Alert.alert("Aguarde", "Salvando meta...");
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.replace("/metas")}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>FitMatch</Text>
-
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content}>
-          <MetaForm
-            form={form}
-            editandoId={id || null}
-            erro={erro}
-            onChange={alterarCampo}
-            onSubmit={salvarMeta}
-            onCancel={cancelar}
-          />
-        </ScrollView>
-      </View>
-    </SafeAreaView>
-  );
 }
+
+export default LocalSearchParamsAdapter.connect(MetaFormScreen);
 
 const styles = StyleSheet.create({
   safeArea: {

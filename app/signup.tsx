@@ -1,179 +1,192 @@
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { doc, setDoc } from "firebase/firestore";
-import React, { useState } from "react";
+import React, { Component } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import AuthService from "../src/services/AuthService";
 import { auth, db } from "../src/utils/firebaseConfig";
 
-const SignUpScreen = () => {
-  const router = useRouter();
+interface SignUpState {
+  nome: string;
+  email: string;
+  senha: string;
+  loading: boolean;
+  errorMsg: string;
+}
 
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+export default class SignUpScreen extends Component<object, SignUpState> {
+  state: SignUpState = {
+    nome: "",
+    email: "",
+    senha: "",
+    loading: false,
+    errorMsg: "",
+  };
 
-  const handleRegister = async () => {
+  private setNome = (nome: string) => {
+    this.setState({ nome });
+  };
+
+  private setEmail = (email: string) => {
+    this.setState({ email });
+  };
+
+  private setSenha = (senha: string) => {
+    this.setState({ senha });
+  };
+
+  private handleRegister = async () => {
+    const { nome, email, senha } = this.state;
+
     if (!nome || !email || !senha) {
-      setErrorMsg("Por favor, preencha todos os campos.");
+      this.setState({ errorMsg: "Por favor, preencha todos os campos." });
       return;
     }
-    setErrorMsg("");
-    setLoading(true);
+
+    this.setState({ errorMsg: "", loading: true });
+
     try {
-      // 1. Tenta registrar (Auth)
       await AuthService.register(nome, email, senha);
 
-      // 2. Se chegou aqui, o usuário foi criado.
-      // Pegamos o UID que o Firebase acabou de gerar:
       const user = auth.currentUser;
 
       if (user) {
-        // 3. Salvamos o nome no Firestore na coleção 'users'
         await setDoc(doc(db, "users", user.uid), {
-          name: nome, // Salvando o nome que ele digitou
-          email: email,
+          name: nome,
+          email,
           createdAt: new Date().toISOString(),
         });
       }
 
-      // SUCESSO!
-      // Mostra o alerta
       Alert.alert("Sucesso", "Conta criada com sucesso! Seja bem-vindo(a).");
-
-      // Navega para a tela principal
       router.replace("/login");
     } catch (err: any) {
-      // Log completo no terminal para ver o que realmente está acontecendo
       console.error("ERRO COMPLETO NO CADASTRO:", err);
-
-      // Tenta mostrar uma mensagem mais amigável, mas mantém o console.error
-      setErrorMsg(
-        "Erro: " + (err.message || "Falha ao conectar. Verifique o console."),
-      );
+      this.setState({
+        errorMsg:
+          "Erro: " + (err.message || "Falha ao conectar. Verifique o console."),
+      });
     } finally {
-      setLoading(false);
+      this.setState({ loading: false });
     }
   };
 
-  return (
-    // 1. O KeyboardAvoidingView garante que os inputs subam com o teclado
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "padding"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerText}>FitMatch</Text>
-      </View>
+  render() {
+    const { nome, email, senha, loading, errorMsg } = this.state;
 
-      {/* 2. TouchableWithoutFeedback permite fechar o teclado ao clicar fora dos inputs */}
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        {/* 3. ScrollView permite rolar a tela, essencial para logos grandes */}
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          <Image
-            source={require("../assets/images/LogoFitMatch.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerText}>FitMatch</Text>
+        </View>
 
-          <Text style={styles.title}>Criar uma conta</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Seu nome</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                errorMsg && !nome ? styles.inputError : null,
-              ]}
-            >
-              <TextInput
-                style={styles.input}
-                placeholder="João Silva"
-                value={nome}
-                onChangeText={setNome}
-              />
-            </View>
-
-            <Text style={styles.label}>E-mail</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                errorMsg && !email ? styles.inputError : null,
-              ]}
-            >
-              <TextInput
-                style={styles.input}
-                placeholder="email@exemplo.com"
-                keyboardType="email-address"
-                value={email}
-                autoCapitalize="none"
-                onChangeText={setEmail}
-              />
-            </View>
-
-            <Text style={styles.label}>Senha</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                errorMsg && !senha ? styles.inputError : null,
-              ]}
-            >
-              <TextInput
-                style={styles.input}
-                placeholder="******"
-                secureTextEntry
-                value={senha}
-                onChangeText={setSenha}
-              />
-            </View>
-          </View>
-
-          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-
-          <TouchableOpacity
-            style={[styles.button, loading && { opacity: 0.7 }]}
-            onPress={handleRegister}
-            disabled={loading}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.buttonText}>Cadastrar</Text>
-            )}
-          </TouchableOpacity>
+            <Image
+              source={require("../assets/images/LogoFitMatch.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
 
-          <TouchableOpacity onPress={() => router.replace("/login")}>
-            <Text style={styles.footerText}>
-              Já tem uma conta? <Text style={styles.link}>Entrar</Text>
-            </Text>
-          </TouchableOpacity>
+            <Text style={styles.title}>Criar uma conta</Text>
 
-          {/* Espaçamento extra no final para garantir que o último botão não fique colado na borda */}
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-  );
-};
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Seu nome</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  errorMsg && !nome ? styles.inputError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="Joao Silva"
+                  value={nome}
+                  onChangeText={this.setNome}
+                />
+              </View>
+
+              <Text style={styles.label}>E-mail</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  errorMsg && !email ? styles.inputError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="email@exemplo.com"
+                  keyboardType="email-address"
+                  value={email}
+                  autoCapitalize="none"
+                  onChangeText={this.setEmail}
+                />
+              </View>
+
+              <Text style={styles.label}>Senha</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  errorMsg && !senha ? styles.inputError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="******"
+                  secureTextEntry
+                  value={senha}
+                  onChangeText={this.setSenha}
+                />
+              </View>
+            </View>
+
+            {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.button, loading && { opacity: 0.7 }]}
+              onPress={this.handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.buttonText}>Cadastrar</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => router.replace("/login")}>
+              <Text style={styles.footerText}>
+                Ja tem uma conta? <Text style={styles.link}>Entrar</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    );
+  }
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F8F8" },
@@ -183,18 +196,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 40,
-    zIndex: 10, // Garante que o header fique por cima
+    zIndex: 10,
   },
   headerText: { color: "white", fontSize: 22, fontWeight: "bold" },
-
-  // Alterado de 'body' para 'scrollContainer'
   scrollContainer: {
     paddingHorizontal: 30,
     paddingTop: 20,
     alignItems: "center",
-    flexGrow: 1, // Permite que o conteúdo estique e role
+    flexGrow: 1,
   },
-
   logo: {
     width: 320,
     height: 280,
@@ -232,5 +242,3 @@ const styles = StyleSheet.create({
   footerText: { marginTop: 25, color: "#999" },
   link: { color: "#4A90E2", fontWeight: "bold" },
 });
-
-export default SignUpScreen;
