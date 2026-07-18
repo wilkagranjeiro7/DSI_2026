@@ -2,7 +2,6 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { Component } from "react";
 
-<<<<<<< Updated upstream
 export default class RootLayout extends Component {
   render() {
     return (
@@ -28,17 +27,3 @@ export default class RootLayout extends Component {
     );
   }
 }
-=======
-export default function RootLayout() {
-  return (
-    <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" /> {/* Boas-vindas */}
-        <Stack.Screen name="login" /> {/* Login */}
-        <Stack.Screen name="signup" /> {/* Cadastro */}
-      </Stack>
-    </>
-  );
-}
->>>>>>> Stashed changes
