@@ -335,6 +335,21 @@ export default class HomeScreen extends Component<object, HomeState> {
                   />
                 }
               />
+
+              <SmallCard
+                title="Avaliação Física"
+                subtitle="Monitore sua evolução física"
+                onPress={() => router.push("/avaliacoes")}
+                icon={
+                  <Ionicons
+                    name="analytics-outline"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+
+
             </View>
           </ScrollView>
 
