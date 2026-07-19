@@ -1,6 +1,8 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
+    Alert,
     SafeAreaView,
     ScrollView,
     StatusBar,
@@ -9,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { PlanoAlimentarService } from "../src/services/PlanoAlimentarService";
 import NovaRefeicao from "./NovaRefeicao";
 
 // ==========================================
@@ -43,14 +46,14 @@ interface FoodCardProps {
   emoji?: string;
   iconColor?: string;
   isLast?: boolean;
-  onPress?: () => void; // Adicionado para poder clicar na comida e editar
+  onPress?: () => void;
 }
 
 interface MealSectionProps {
   title: string;
   totalCalories: number;
   foods: Alimento[];
-  onEditPress: () => void; // Adicionado para abrir a edição
+  onEditPress: () => void;
 }
 
 // ==========================================
@@ -114,7 +117,6 @@ function MealSection({
         <View style={styles.mealHeaderRight}>
           <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
           <TouchableOpacity style={styles.addMealButton} onPress={onEditPress}>
-            {/* O botão '+' agora serve para editar/adicionar itens nesta refeição */}
             <Feather name="plus" size={18} color="#000" />
           </TouchableOpacity>
         </View>
@@ -131,7 +133,7 @@ function MealSection({
               emoji={food.emoji}
               iconColor={food.iconColor}
               isLast={index === foods.length - 1}
-              onPress={onEditPress} // Clicar na comida também abre a edição!
+              onPress={onEditPress}
             />
           ))
         ) : (
@@ -179,7 +181,7 @@ function BottomTabs() {
 // ==========================================
 // 3. TELA PRINCIPAL (Onde o CRUD funciona)
 // ==========================================
-export default function App() {
+export default function PlanoAlimentar() {
   const [telaAtual, setTelaAtual] = useState<"PlanoAlimentar" | "NovaRefeicao">(
     "PlanoAlimentar",
   );
@@ -189,71 +191,63 @@ export default function App() {
     null,
   );
 
-  // O nosso "Banco de Dados" temporário. Já deixei uma refeição de exemplo!
-  const [refeicoes, setRefeicoes] = useState<Refeicao[]>([
-    {
-      id: "ref_1",
-      tipo: "Café da manhã",
-      nome: "Café reforçado",
-      itens: [
-        {
-          id: "1",
-          nome: "Aveia com banana",
-          porcao: "1 porção",
-          calorias: 280,
-          emoji: "🥣",
-          iconColor: "#FFF0F0",
-        },
-        {
-          id: "2",
-          nome: "Ovo mexido",
-          porcao: "2 unidades",
-          calorias: 140,
-          emoji: "🥚",
-          iconColor: "#FFF9E6",
-        },
-      ],
-    },
-  ]);
+  // Agora começa vazio: os dados vêm do Firebase
+  const [refeicoes, setRefeicoes] = useState<Refeicao[]>([]);
+
+  // ==========================================
+  // BUSCAR DADOS DO FIREBASE
+  // ==========================================
+  const carregarRefeicoes = useCallback(async () => {
+    try {
+      const dados = await PlanoAlimentarService.buscarRefeicoes();
+      setRefeicoes(dados);
+    } catch (error) {
+      console.error("Erro ao carregar plano alimentar:", error);
+    }
+  }, []);
+
+  // Recarrega quando a rota ganha foco (navegação real do expo-router)
+  useFocusEffect(
+    useCallback(() => {
+      carregarRefeicoes();
+    }, [carregarRefeicoes]),
+  );
 
   // ==========================================
   // FUNÇÕES DO CRUD
   // ==========================================
 
-  // CREATE (Criar) e UPDATE (Atualizar)
-  const salvarRefeicao = (novaRefeicao: Refeicao) => {
-    const existe = refeicoes.find((r) => r.id === novaRefeicao.id);
-
-    if (existe) {
-      // Se já existir, atualiza a lista
-      setRefeicoes(
-        refeicoes.map((r) => (r.id === novaRefeicao.id ? novaRefeicao : r)),
-      );
-    } else {
-      // Se não existir, adiciona uma nova
-      setRefeicoes([...refeicoes, novaRefeicao]);
+  // DELETE (Apagar) - agora conectado ao Firebase de verdade
+  const deletarRefeicao = async (idRefeicao: string) => {
+    try {
+      await PlanoAlimentarService.deletarRefeicao(idRefeicao);
+      setRefeicoes(refeicoes.filter((r) => r.id !== idRefeicao));
+      Alert.alert("Excluído", "A refeição foi removida do seu plano.");
+    } catch (error) {
+      console.error("Erro ao deletar refeição:", error);
+      Alert.alert("Erro", "Não foi possível excluir a refeição.");
+    } finally {
+      setTelaAtual("PlanoAlimentar");
+      setRefeicaoEditando(null);
     }
-
-    setTelaAtual("PlanoAlimentar");
-    setRefeicaoEditando(null);
-  };
-
-  // DELETE (Apagar)
-  const deletarRefeicao = (idRefeicao: string) => {
-    setRefeicoes(refeicoes.filter((r) => r.id !== idRefeicao));
-    setTelaAtual("PlanoAlimentar");
-    setRefeicaoEditando(null);
   };
 
   // ABRIR TELAS
   const abrirNovaRefeicao = () => {
-    setRefeicaoEditando(null); // Limpa para criar do zero
+    setRefeicaoEditando(null);
     setTelaAtual("NovaRefeicao");
   };
 
   const abrirEditarRefeicao = (refeicao: Refeicao) => {
-    setRefeicaoEditando(refeicao); // Manda os dados da refeição clicada
+    setRefeicaoEditando(refeicao);
     setTelaAtual("NovaRefeicao");
+  };
+
+  // Chamado quando o usuário volta da tela NovaRefeicao (com ou sem salvar)
+  const voltarParaLista = () => {
+    setTelaAtual("PlanoAlimentar");
+    setRefeicaoEditando(null);
+    carregarRefeicoes(); // recarrega a lista pra trazer o que foi salvo no Firebase
   };
 
   // ==========================================
@@ -263,12 +257,9 @@ export default function App() {
     return (
       <NovaRefeicao
         refeicaoEditando={refeicaoEditando}
-        onSalvar={salvarRefeicao}
+        onSalvar={voltarParaLista}
         onDeletar={deletarRefeicao}
-        onVoltar={() => {
-          setTelaAtual("PlanoAlimentar");
-          setRefeicaoEditando(null);
-        }}
+        onVoltar={voltarParaLista}
       />
     );
   }
@@ -288,7 +279,6 @@ export default function App() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.dateText}>Hoje, 15 de abril</Text>
 
-        {/* Caixa de Resumo Dinâmica */}
         <View style={styles.summaryBox}>
           <Text style={styles.summaryTitle}>Resumo do dia</Text>
           <View style={styles.macrosContainer}>
@@ -359,7 +349,6 @@ export default function App() {
           </View>
         </View>
 
-        {/* LISTAGEM DAS REFEIÇÕES (Vindas do "Banco de Dados") */}
         {refeicoes.map((refeicao) => {
           const caloriasDaRefeicao = refeicao.itens.reduce(
             (total, item) => total + item.calorias,
@@ -372,12 +361,11 @@ export default function App() {
               title={`${refeicao.tipo} ${refeicao.nome ? `- ${refeicao.nome}` : ""}`}
               totalCalories={caloriasDaRefeicao}
               foods={refeicao.itens}
-              onEditPress={() => abrirEditarRefeicao(refeicao)} // Clicar aqui abre a edição!
+              onEditPress={() => abrirEditarRefeicao(refeicao)}
             />
           );
         })}
 
-        {/* BOTÃO PARA CRIAR UMA NOVA DO ZERO */}
         <TouchableOpacity
           style={styles.botaoAdicionarRefeicao}
           onPress={abrirNovaRefeicao}
