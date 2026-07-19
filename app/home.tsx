@@ -311,6 +311,19 @@ export default class HomeScreen extends Component<object, HomeState> {
               />
 
               <SmallCard
+                title="Diário de hidratação"
+                subtitle="Registre seu consumo de líquidos"
+                onPress={() => router.push("/hidratacao")}
+                icon={
+                  <Ionicons
+                    name="water-outline"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+
+              <SmallCard
                 title="Historico de exercicios"
                 subtitle="Veja sua evolucao"
                 onPress={() => router.push("/historico-exercicios")}
