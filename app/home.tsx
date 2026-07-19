@@ -4,14 +4,14 @@ import { onAuthStateChanged, Unsubscribe, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { Component, ReactNode } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
 import { auth, db } from "../src/utils/firebaseConfig";
@@ -42,7 +42,6 @@ class HomeUserReader {
 
     if (userDoc.exists()) {
       const dados = userDoc.data();
-
       if (dados.nome) {
         nomeExibicao = dados.nome;
       } else if (dados.name) {
@@ -52,24 +51,19 @@ class HomeUserReader {
       if (dados.photoUrl) {
         userPhoto = `${dados.photoUrl}?t=${Date.now()}`;
       }
-
       return { userName: nomeExibicao, userPhoto };
     }
 
     const perfilDoc = await getDoc(doc(db, "perfis", user.uid));
-
     if (perfilDoc.exists()) {
       const dadosPerfil = perfilDoc.data();
-
       if (dadosPerfil.nome) {
         nomeExibicao = dadosPerfil.nome;
       }
-
       if (dadosPerfil.photoUrl) {
         userPhoto = `${dadosPerfil.photoUrl}?t=${Date.now()}`;
       }
     }
-
     return { userName: nomeExibicao, userPhoto };
   }
 }
@@ -84,7 +78,6 @@ interface SmallCardProps {
 class SmallCard extends Component<SmallCardProps> {
   render() {
     const { title, subtitle, icon, onPress } = this.props;
-
     return (
       <TouchableOpacity
         style={styles.smallCard}
@@ -94,9 +87,7 @@ class SmallCard extends Component<SmallCardProps> {
         <View style={styles.smallBadge}>
           <Text style={styles.smallBadgeText}>Notificacao</Text>
         </View>
-
         <View style={styles.smallIconArea}>{icon}</View>
-
         <View style={styles.smallCardContent}>
           <Text style={styles.smallCardTitle}>{title}</Text>
           <Text style={styles.smallCardSubtitle}>{subtitle}</Text>
@@ -133,10 +124,7 @@ export default class HomeScreen extends Component<object, HomeState> {
 
   componentWillUnmount() {
     this.unsubscribeAuth?.();
-
-    if (this.toastTimer) {
-      clearTimeout(this.toastTimer);
-    }
+    if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
   private handleAuthState = async (user: User | null) => {
@@ -144,12 +132,11 @@ export default class HomeScreen extends Component<object, HomeState> {
       this.setState({ loadingName: false });
       return;
     }
-
     try {
       const profile = await this.userReader.read(user);
       this.setState(profile);
     } catch (error) {
-      console.error("Erro ao buscar dados dinamicos do usuario:", error);
+      console.error("Erro ao buscar dados:", error);
     } finally {
       this.setState({ loadingName: false });
     }
@@ -157,11 +144,7 @@ export default class HomeScreen extends Component<object, HomeState> {
 
   private mostrarAvisoDiscreto = (mensagem: string) => {
     this.setState({ toastMensagem: mensagem, toastVisivel: true });
-
-    if (this.toastTimer) {
-      clearTimeout(this.toastTimer);
-    }
-
+    if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(() => {
       this.setState({ toastVisivel: false });
     }, 2500);
@@ -169,7 +152,7 @@ export default class HomeScreen extends Component<object, HomeState> {
 
   private handleSignOut = async () => {
     try {
-      this.mostrarAvisoDiscreto("Saindo da conta... Ate logo!");
+      this.mostrarAvisoDiscreto("Saindo da conta...");
       setTimeout(async () => {
         await auth.signOut();
         router.replace("/login");
@@ -181,9 +164,11 @@ export default class HomeScreen extends Component<object, HomeState> {
 
   private renderAvatar() {
     const { userPhoto } = this.state;
-
     return (
-      <TouchableOpacity onPress={() => router.push("/perfil")} activeOpacity={0.8}>
+      <TouchableOpacity
+        onPress={() => router.push("/perfil")}
+        activeOpacity={0.8}
+      >
         {userPhoto ? (
           <Image source={{ uri: userPhoto }} style={styles.avatar} />
         ) : (
@@ -212,9 +197,6 @@ export default class HomeScreen extends Component<object, HomeState> {
         <View style={styles.container}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={22} color={HomeColors.white} />
-              </TouchableOpacity>
               <MaterialCommunityIcons
                 name="dumbbell"
                 size={24}
@@ -223,16 +205,9 @@ export default class HomeScreen extends Component<object, HomeState> {
               />
               <Text style={styles.headerTitle}>FitMatch</Text>
             </View>
-
             <View style={styles.headerRight}>
-              <Feather name="help-circle" size={20} color={HomeColors.white} />
               <TouchableOpacity onPress={this.handleSignOut}>
-                <Feather
-                  name="log-out"
-                  size={20}
-                  color={HomeColors.white}
-                  style={{ marginLeft: 14 }}
-                />
+                <Feather name="log-out" size={20} color={HomeColors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -243,64 +218,51 @@ export default class HomeScreen extends Component<object, HomeState> {
           >
             <View style={styles.greetingRow}>
               {this.renderAvatar()}
-
               <View style={{ marginLeft: 12 }}>
                 {loadingName ? (
                   <ActivityIndicator size="small" color={HomeColors.primary} />
                 ) : (
-                  <Text style={styles.greetingTitle}>Ola, {userName}!</Text>
+                  <Text style={styles.greetingTitle}>Olá, {userName}!</Text>
                 )}
-                <Text style={styles.greetingSubtitle}>Bem vinda ao FitMatch</Text>
+                <Text style={styles.greetingSubtitle}>
+                  Bem vinda ao FitMatch
+                </Text>
               </View>
             </View>
 
+            {/* Card Principal */}
             <View style={styles.mainCard}>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>Notificacao</Text>
               </View>
-
               <Text style={styles.mainCardTitle}>Seu treino de hoje</Text>
-
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionTitle}>Aquecimento</Text>
                 <Text style={styles.sectionText}>2 min de polichinelos</Text>
               </View>
-
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Alongamento</Text>
-                <Text style={styles.sectionText}>5 min de alongamento</Text>
-              </View>
-
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Treino</Text>
-                <Text style={styles.sectionText}>3x flexao</Text>
-                <Text style={styles.sectionText}>3x agachamento</Text>
-              </View>
-
               <TouchableOpacity style={styles.mainButton}>
                 <Text style={styles.mainButtonText}>Iniciar treino</Text>
               </TouchableOpacity>
-
               <View style={styles.recentArea}>
                 <Text style={styles.recentLabel}>Atividade recente</Text>
                 <Text style={styles.recentDate}>Maio 04, 2026</Text>
               </View>
             </View>
 
+            {/* Grid de Cards */}
             <View style={styles.grid}>
               <SmallCard
-                title="Biblioteca de Exercicios"
-                subtitle="Veja todos os exercicios"
-                onPress={() => router.push("/meus-exercicios")}
+                title="Locais para treinar"
+                subtitle="Encontre locais próximos"
+                onPress={() => router.push("/locais")}
                 icon={
                   <Ionicons
-                    name="library-outline"
+                    name="map-outline"
                     size={54}
                     color={HomeColors.primary}
                   />
                 }
               />
-
               <SmallCard
                 title="Estabelecer metas"
                 subtitle="Defina objetivos de treino"
@@ -309,40 +271,24 @@ export default class HomeScreen extends Component<object, HomeState> {
                   <Feather name="target" size={54} color={HomeColors.primary} />
                 }
               />
-
               <SmallCard
-                title="Diário de hidratação"
-                subtitle="Registre seu consumo de líquidos"
-                onPress={() => router.push("/hidratacao")}
-                icon={
-                  <Ionicons
-                    name="water-outline"
-                    size={54}
-                    color={HomeColors.primary}
-                  />
-                }
-              />
-
-              <SmallCard
-                title="Historico de exercicios"
+                title="Seu progresso"
                 subtitle="Veja sua evolucao"
-                onPress={() => router.push("/historico-exercicios")}
                 icon={
                   <Ionicons
-                    name="bar-chart-outline"
+                    name="nutrition-outline"
                     size={54}
                     color={HomeColors.primary}
                   />
                 }
               />
-
               <SmallCard
-                title="Treinos favoritos"
-                subtitle="Acesse rapidamente"
-                onPress={() => router.push("/meus-treinos")}
+                title="Dicas e bem-estar"
+                subtitle="Cuide da sua saúde"
+                onPress={() => router.push("/dicas")}
                 icon={
                   <Ionicons
-                    name="heart-outline"
+                    name="body-outline"
                     size={54}
                     color={HomeColors.primary}
                   />
@@ -446,13 +392,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionBlock: { marginBottom: 14 },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: HomeColors.text,
-    marginBottom: 2,
-  },
-  sectionText: { fontSize: 18, color: HomeColors.text, lineHeight: 24 },
+  sectionTitle: { fontSize: 22, fontWeight: "700", color: HomeColors.text },
+  sectionText: { fontSize: 18, color: HomeColors.text },
   mainButton: {
     alignSelf: "center",
     backgroundColor: HomeColors.primary,
@@ -460,15 +401,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     marginTop: 8,
-    marginBottom: 20,
   },
-  mainButtonText: {
-    color: HomeColors.white,
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  mainButtonText: { color: HomeColors.white, fontSize: 16, fontWeight: "700" },
   recentArea: { marginTop: 6 },
-  recentLabel: { fontSize: 15, color: HomeColors.text, marginBottom: 4 },
+  recentLabel: { fontSize: 15, color: HomeColors.text },
   recentDate: { fontSize: 18, fontWeight: "500", color: HomeColors.text },
   grid: {
     flexDirection: "row",
@@ -493,11 +429,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 10,
     borderBottomRightRadius: 10,
   },
-  smallBadgeText: {
-    color: HomeColors.white,
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  smallBadgeText: { color: HomeColors.white, fontSize: 12, fontWeight: "600" },
   smallIconArea: {
     height: 95,
     alignItems: "center",
@@ -523,11 +455,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
     zIndex: 9999,
   },
   toastText: {
