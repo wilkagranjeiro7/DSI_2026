@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
     Alert,
@@ -12,6 +13,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { PlanoAlimentarService } from "../src/services/PlanoAlimentarService";
 
 // ==========================================
 // 1. INTERFACES DO CRUD
@@ -44,6 +46,8 @@ export default function NovaRefeicao({
   onDeletar,
   onVoltar,
 }: NovaRefeicaoProps) {
+  const router = useRouter(); // <-- necessário caso a tela seja acessada direto por rota
+
   const isEditando = !!refeicaoEditando;
 
   // ==========================================
@@ -58,6 +62,8 @@ export default function NovaRefeicao({
   const [itensAdicionados, setItensAdicionados] = useState<Alimento[]>(
     refeicaoEditando?.itens || [],
   );
+
+  const [salvando, setSalvando] = useState(false); // evita clique duplo no botão salvar
 
   // Estados do Modal (Janelinha de criar alimento)
   const [modalVisivel, setModalVisivel] = useState(false);
@@ -139,31 +145,58 @@ export default function NovaRefeicao({
       nome: customNome,
       porcao: customPorcao || "1 porção",
       calorias: parseInt(customCalorias) || 0,
-      emoji: "🍽️", // Colocamos um emoji padrão de prato
+      emoji: "🍽️",
     };
 
-    // Adiciona direto na refeição que ele está montando
     setItensAdicionados([...itensAdicionados, novoAlimento]);
 
-    // Limpa os campos e fecha a janelinha
     setCustomNome("");
     setCustomPorcao("");
     setCustomCalorias("");
     setModalVisivel(false);
   };
 
-  const handleSalvar = () => {
+  // ==========================================
+  // SALVAR NO FIREBASE (cria OU atualiza, sem duplicar)
+  // ==========================================
+  const handleSalvar = async () => {
     if (!nomeRefeicao.trim()) {
       Alert.alert("Aviso", "Por favor, dê um nome para a sua refeição.");
       return;
     }
-    const refeicaoPronta: Refeicao = {
-      id: isEditando ? refeicaoEditando.id : Math.random().toString(),
+
+    const dadosRefeicao = {
       tipo: tipoSelecionado,
       nome: nomeRefeicao,
       itens: itensAdicionados,
     };
-    onSalvar(refeicaoPronta);
+
+    setSalvando(true);
+    try {
+      if (isEditando && refeicaoEditando) {
+        // Atualiza a refeição existente no Firestore (não cria uma nova)
+        await PlanoAlimentarService.atualizarRefeicao(
+          refeicaoEditando.id,
+          dadosRefeicao,
+        );
+        Alert.alert("Sucesso", "Alterações salvas!");
+      } else {
+        // Cria uma refeição nova no Firestore
+        await PlanoAlimentarService.salvarRefeicao(dadosRefeicao);
+        Alert.alert("Sucesso", "Refeição salva no seu plano!");
+      }
+
+      // Avisa o componente pai (caso ele precise atualizar algo)
+      onSalvar({
+        id: isEditando ? refeicaoEditando!.id : Math.random().toString(),
+        ...dadosRefeicao,
+      });
+    } catch (error) {
+      console.error("Erro ao salvar refeição:", error);
+      Alert.alert("Erro", "Não foi possível salvar a refeição.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const handleDeletar = () => {
@@ -196,7 +229,9 @@ export default function NovaRefeicao({
 
       {/* CABEÇALHO */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onVoltar}>
+        <TouchableOpacity
+          onPress={() => (onVoltar ? onVoltar() : router.back())}
+        >
           <Feather name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
@@ -244,7 +279,6 @@ export default function NovaRefeicao({
           onChangeText={setNomeRefeicao}
         />
 
-        {/* ITENS DA REFEIÇÃO (Modo Edição) */}
         {isEditando && (
           <>
             <Text style={styles.sectionTitle}>Itens da refeição</Text>
@@ -269,7 +303,6 @@ export default function NovaRefeicao({
           </>
         )}
 
-        {/* BUSCAR ALIMENTOS */}
         <Text style={styles.sectionTitle}>Adicionar alimentos</Text>
         <View style={styles.searchContainer}>
           <Feather
@@ -285,7 +318,6 @@ export default function NovaRefeicao({
           />
         </View>
 
-        {/* LISTA DE ALIMENTOS DISPONÍVEIS */}
         <View style={styles.cardList}>
           {alimentosDisponiveis.map((item, index) => (
             <ItemComida
@@ -301,7 +333,6 @@ export default function NovaRefeicao({
           ))}
         </View>
 
-        {/* BOTÃO MÁGICO: CRIAR ALIMENTO PERSONALIZADO */}
         <TouchableOpacity
           style={styles.btnCriarPersonalizado}
           onPress={() => setModalVisivel(true)}
@@ -312,7 +343,6 @@ export default function NovaRefeicao({
           </Text>
         </TouchableOpacity>
 
-        {/* ITENS ADICIONADOS (Modo Criação) */}
         {!isEditando && (
           <>
             <Text style={styles.sectionTitle}>Itens adicionados</Text>
@@ -348,16 +378,22 @@ export default function NovaRefeicao({
           <Text style={styles.totalLabel}>Total da refeição</Text>
           <Text style={styles.totalValue}>{totalCalorias} kcal</Text>
         </View>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSalvar}>
+        <TouchableOpacity
+          style={[styles.saveButton, salvando && { opacity: 0.6 }]}
+          onPress={handleSalvar}
+          disabled={salvando}
+        >
           <Text style={styles.saveButtonText}>
-            {isEditando ? "Salvar alterações" : "Salvar refeição"}
+            {salvando
+              ? "Salvando..."
+              : isEditando
+                ? "Salvar alterações"
+                : "Salvar refeição"}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ========================================== */}
-      {/* MODAL (JANELINHA) DE ALIMENTO PERSONALIZADO */}
-      {/* ========================================== */}
+      {/* MODAL DE ALIMENTO PERSONALIZADO */}
       <Modal visible={modalVisivel} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -460,7 +496,7 @@ function ItemComida({
 }
 
 // ==========================================
-// 4. ESTILOS (Adicionado o visual da Janelinha)
+// 5. ESTILOS
 // ==========================================
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
@@ -595,8 +631,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
-
-  // Estilos do Botão de Criar Alimento
   btnCriarPersonalizado: {
     flexDirection: "row",
     alignItems: "center",
@@ -610,8 +644,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 8,
   },
-
-  // Estilos do Modal (Janelinha Flutuante)
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
