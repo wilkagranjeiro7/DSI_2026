@@ -1,6 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  Unsubscribe,
+} from "firebase/firestore";
+import React, { Component } from "react";
 import {
   Alert,
   FlatList,
@@ -12,320 +20,390 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import LocalSearchParamsAdapter, {
+  LocalSearchParamReader,
+  LocalSearchParamsProps,
+} from "../src/navigation/LocalSearchParamsAdapter";
 import { db } from "../src/utils/firebaseConfig";
 
-interface Exercicio {
-  id: string;
-  nome: string;
-  grupo: string;
-  seriesRep: string;
-  categoria: string;
-  instrucoes: string;
+class Exercicio {
+  constructor(
+    readonly id: string,
+    readonly nome: string,
+    readonly grupo: string,
+    readonly seriesRep: string,
+    readonly categoria: string,
+    readonly instrucoes: string,
+  ) {}
+
+  static fromFirestore(id: string, data: any) {
+    const categoria = ExercicioCategoryResolver.fromGrupo(data.grupoMuscular);
+
+    return new Exercicio(
+      id,
+      data.nome || "Sem nome",
+      data.grupoMuscular || "Geral",
+      `${data.series} series - ${data.repeticoes}`,
+      categoria,
+      data.descricao || "",
+    );
+  }
+
+  withEdit(edicao: Partial<Exercicio>) {
+    return new Exercicio(
+      this.id,
+      edicao.nome || this.nome,
+      edicao.grupo || this.grupo,
+      edicao.seriesRep || this.seriesRep,
+      edicao.categoria || this.categoria,
+      edicao.instrucoes || this.instrucoes,
+    );
+  }
+
+  isFirebase() {
+    return this.id.length > 10;
+  }
 }
 
-const FILTROS_EXERCICIOS: string[] = [
-  "Todos",
-  "Meus Salvos",
-  "Superior",
-  "Inferior",
-  "Costas",
-  "Cardio",
-  "Abdômen",
-  "Alongamento",
-];
+class ExercicioCategoryResolver {
+  static fromGrupo(grupo: string = "") {
+    const grupoCheck = grupo.toLowerCase();
 
-const EXERCICIOS_PADRAO: Exercicio[] = [
-  {
-    id: "40",
-    nome: "Rotação de Ombros",
-    grupo: "Pré-Treino • Superior",
-    seriesRep: "2 séries • 15 voltas",
-    categoria: "Alongamento",
-    instrucoes:
-      "Excelente exercício para liberar a tensão acumulada na região do pescoço e trapézio.",
-  },
-  {
-    id: "41",
-    nome: "Rotação de Tronco",
-    grupo: "Pré-Treino • Core e Costas",
-    seriesRep: "2 séries • 30 segundos",
-    categoria: "Alongamento",
-    instrucoes: "Movimento dinâmico que aquece a coluna vertebral.",
-  },
-  {
-    id: "42",
-    nome: "Balanço de Pernas",
-    grupo: "Pré-Treino • Inferior",
-    seriesRep: "2 séries • 15 vezes cada",
-    categoria: "Alongamento",
-    instrucoes: "Ideal para soltar a articulação do quadril.",
-  },
-  {
-    id: "43",
-    nome: "Polichinelos",
-    grupo: "Pré-Treino • Corpo Todo",
-    seriesRep: "3 séries • 45 segundos",
-    categoria: "Alongamento",
-    instrucoes: "Exercício cardiovascular clássico.",
-  },
-  {
-    id: "30",
-    nome: "Alongamento de Ombros",
-    grupo: "Relaxamento • Parte Superior",
-    seriesRep: "1 série • 30 segundos",
-    categoria: "Alongamento",
-    instrucoes: "Movimento estático focado no relaxamento.",
-  },
-  {
-    id: "33",
-    nome: "Alongamento de Quadríceps",
-    grupo: "Relaxamento • Parte Inferior",
-    seriesRep: "1 série • 30 segundos",
-    categoria: "Alongamento",
-    instrucoes: "Focado no alongamento da parte frontal da coxa.",
-  },
-  {
-    id: "14",
-    nome: "Supino Reto (Barra ou Halter)",
-    grupo: "Academia • Peitoral e Tríceps",
-    seriesRep: "4 séries • 10 a 12 repetições",
-    categoria: "Superior",
-    instrucoes: "Construção de força e volume no peitoral.",
-  },
-  {
-    id: "15",
-    nome: "Puxada Alta (Pulldown)",
-    grupo: "Academia • Costas e Bíceps",
-    seriesRep: "4 séries • 12 repetições",
-    categoria: "Costas",
-    instrucoes: "Desenvolvimento da largura das costas.",
-  },
-  {
-    id: "16",
-    nome: "Desenvolvimento com Halteres",
-    grupo: "Academia • Ombros",
-    seriesRep: "3 séries • 12 repetições",
-    categoria: "Superior",
-    instrucoes: "Focado na construção de ombros fortes.",
-  },
-  {
-    id: "17",
-    nome: "Rosca Direta com Halteres",
-    grupo: "Academia/Casa • Bíceps",
-    seriesRep: "3 séries • 12 repetições",
-    categoria: "Superior",
-    instrucoes: "Isolar e desenvolver os bíceps.",
-  },
-  {
-    id: "18",
-    nome: "Polia de Tríceps (Polia)",
-    grupo: "Academia • Tríceps",
-    seriesRep: "3 séries • 15 repetições",
-    categoria: "Superior",
-    instrucoes: "Isolar a musculatura do tríceps.",
-  },
-  {
-    id: "1",
-    nome: "Agachamento Livre (Barra)",
-    grupo: "Academia • Pernas Geral",
-    seriesRep: "4 séries • 10 repetições",
-    categoria: "Inferior",
-    instrucoes: "Rei dos exercícios de perna.",
-  },
-  {
-    id: "2",
-    nome: "Leg Press 45°",
-    grupo: "Academia • Quadríceps e Glúteos",
-    seriesRep: "4 séries • 12 repetições",
-    categoria: "Inferior",
-    instrucoes: "Trabalho pesado de pernas.",
-  },
-  {
-    id: "3",
-    nome: "Cadeira Extensora",
-    grupo: "Academia • Quadríceps",
-    seriesRep: "3 séries • 15 repetições",
-    categoria: "Inferior",
-    instrucoes: "Exercício isolado focado no quadríceps.",
-  },
-  {
-    id: "4",
-    nome: "Agachamento Búlgaro",
-    grupo: "Academia • Quadríceps e Glúteos",
-    seriesRep: "3 séries • 10 repetições cada perna",
-    categoria: "Inferior",
-    instrucoes: "Movimento unilateral poderoso.",
-  },
-  {
-    id: "5",
-    nome: "Elevação Pélvica",
-    grupo: "Academia • Glúteos",
-    seriesRep: "4 séries • 12 a 15 repetições",
-    categoria: "Inferior",
-    instrucoes: "Número um para glúteos.",
-  },
-  {
-    id: "6",
-    nome: "Mesa Flexora",
-    grupo: "Academia • Posteriores de Coxa",
-    seriesRep: "4 séries • 12 repetições",
-    categoria: "Inferior",
-    instrucoes: "Isolamento da parte de trás da coxa.",
-  },
-  {
-    id: "19",
-    nome: "Corrida na Esteira",
-    grupo: "Academia • Aeróbico",
-    seriesRep: "1 sessão • 20 a 30 min",
-    categoria: "Cardio",
-    instrucoes: "Melhora do condicionamento cardiovascular.",
-  },
-  {
-    id: "22",
-    nome: "Supra abdominal",
-    grupo: "Geral • Fortalecimento de Core",
-    seriesRep: "4 séries • 20 repetições",
-    categoria: "Abdômen",
-    instrucoes: "Fortalecimento direto da parede abdominal.",
-  },
-];
+    if (
+      grupoCheck.includes("perna") ||
+      grupoCheck.includes("inferior") ||
+      grupoCheck.includes("gluteo") ||
+      grupoCheck.includes("glúteo")
+    ) {
+      return "Inferior";
+    }
 
-export default function MeusExerciciosScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
+    if (grupoCheck.includes("abd")) {
+      return "Abdomen";
+    }
 
-  const categoriaInicial = params.categoriaInicial as string;
+    if (grupoCheck.includes("cardio") || grupoCheck.includes("esteira")) {
+      return "Cardio";
+    }
 
-  const [exerciciosList, setExerciciosList] =
-    useState<Exercicio[]>(EXERCICIOS_PADRAO);
-  const [filtroAtivo, setFiltroAtivo] = useState<string>(
-    categoriaInicial || "Todos",
-  );
-  const [busca, setBusca] = useState<string>("");
-  const [concluidos, setConcluidos] = useState<string[]>([]);
-  const [locaisExcluidos, setLocaisExcluidos] = useState<string[]>([]);
+    if (grupoCheck.includes("costas") || grupoCheck.includes("dorsal")) {
+      return "Costas";
+    }
 
-  useEffect(() => {
-    if (categoriaInicial) setFiltroAtivo(categoriaInicial);
-  }, [categoriaInicial]);
+    if (grupoCheck.includes("alongamento")) {
+      return "Alongamento";
+    }
 
-  useFocusEffect(
-    useCallback(() => {
-      const carregarConcluidos = async () => {
-        const salvos = await AsyncStorage.getItem("exerciciosConcluidos");
-        if (salvos) setConcluidos(JSON.parse(salvos));
-      };
-      carregarConcluidos();
-    }, []),
-  );
+    return "Superior";
+  }
+}
 
-  // CORREÇÃO: carrega edições locais dos padrões e mescla com Firebase
-  useEffect(() => {
-    const carregarEdicoesPadrao = async () => {
-      const raw = await AsyncStorage.getItem("edicoesPadrao");
-      return raw ? JSON.parse(raw) : {};
+class ExercicioCatalogo {
+  static readonly filtros = [
+    "Todos",
+    "Meus Salvos",
+    "Superior",
+    "Inferior",
+    "Costas",
+    "Cardio",
+    "Abdomen",
+    "Alongamento",
+  ];
+
+  static readonly padrao: Exercicio[] = [
+    new Exercicio(
+      "40",
+      "Rotacao de Ombros",
+      "Pre-Treino - Superior",
+      "2 series - 15 voltas",
+      "Alongamento",
+      "Excelente exercicio para liberar a tensao acumulada na regiao do pescoco e trapezio.",
+    ),
+    new Exercicio(
+      "41",
+      "Rotacao de Tronco",
+      "Pre-Treino - Core e Costas",
+      "2 series - 30 segundos",
+      "Alongamento",
+      "Movimento dinamico que aquece a coluna vertebral.",
+    ),
+    new Exercicio(
+      "42",
+      "Balanco de Pernas",
+      "Pre-Treino - Inferior",
+      "2 series - 15 vezes cada",
+      "Alongamento",
+      "Ideal para soltar a articulacao do quadril.",
+    ),
+    new Exercicio(
+      "43",
+      "Polichinelos",
+      "Pre-Treino - Corpo Todo",
+      "3 series - 45 segundos",
+      "Alongamento",
+      "Exercicio cardiovascular classico.",
+    ),
+    new Exercicio(
+      "30",
+      "Alongamento de Ombros",
+      "Relaxamento - Parte Superior",
+      "1 serie - 30 segundos",
+      "Alongamento",
+      "Movimento estatico focado no relaxamento.",
+    ),
+    new Exercicio(
+      "33",
+      "Alongamento de Quadriceps",
+      "Relaxamento - Parte Inferior",
+      "1 serie - 30 segundos",
+      "Alongamento",
+      "Focado no alongamento da parte frontal da coxa.",
+    ),
+    new Exercicio(
+      "14",
+      "Supino Reto (Barra ou Halter)",
+      "Academia - Peitoral e Triceps",
+      "4 series - 10 a 12 repeticoes",
+      "Superior",
+      "Construcao de forca e volume no peitoral.",
+    ),
+    new Exercicio(
+      "15",
+      "Puxada Alta (Pulldown)",
+      "Academia - Costas e Biceps",
+      "4 series - 12 repeticoes",
+      "Costas",
+      "Desenvolvimento da largura das costas.",
+    ),
+    new Exercicio(
+      "16",
+      "Desenvolvimento com Halteres",
+      "Academia - Ombros",
+      "3 series - 12 repeticoes",
+      "Superior",
+      "Focado na construcao de ombros fortes.",
+    ),
+    new Exercicio(
+      "17",
+      "Rosca Direta com Halteres",
+      "Academia/Casa - Biceps",
+      "3 series - 12 repeticoes",
+      "Superior",
+      "Isolar e desenvolver os biceps.",
+    ),
+    new Exercicio(
+      "18",
+      "Polia de Triceps (Polia)",
+      "Academia - Triceps",
+      "3 series - 15 repeticoes",
+      "Superior",
+      "Isolar a musculatura do triceps.",
+    ),
+    new Exercicio(
+      "1",
+      "Agachamento Livre (Barra)",
+      "Academia - Pernas Geral",
+      "4 series - 10 repeticoes",
+      "Inferior",
+      "Rei dos exercicios de perna.",
+    ),
+    new Exercicio(
+      "2",
+      "Leg Press 45",
+      "Academia - Quadriceps e Gluteos",
+      "4 series - 12 repeticoes",
+      "Inferior",
+      "Trabalho pesado de pernas.",
+    ),
+    new Exercicio(
+      "3",
+      "Cadeira Extensora",
+      "Academia - Quadriceps",
+      "3 series - 15 repeticoes",
+      "Inferior",
+      "Exercicio isolado focado no quadriceps.",
+    ),
+    new Exercicio(
+      "4",
+      "Agachamento Bulgaro",
+      "Academia - Quadriceps e Gluteos",
+      "3 series - 10 repeticoes cada perna",
+      "Inferior",
+      "Movimento unilateral poderoso.",
+    ),
+    new Exercicio(
+      "5",
+      "Elevacao Pelvica",
+      "Academia - Gluteos",
+      "4 series - 12 a 15 repeticoes",
+      "Inferior",
+      "Numero um para gluteos.",
+    ),
+    new Exercicio(
+      "6",
+      "Mesa Flexora",
+      "Academia - Posteriores de Coxa",
+      "4 series - 12 repeticoes",
+      "Inferior",
+      "Isolamento da parte de tras da coxa.",
+    ),
+    new Exercicio(
+      "19",
+      "Corrida na Esteira",
+      "Academia - Aerobico",
+      "1 sessao - 20 a 30 min",
+      "Cardio",
+      "Melhora do condicionamento cardiovascular.",
+    ),
+    new Exercicio(
+      "22",
+      "Supra abdominal",
+      "Geral - Fortalecimento de Core",
+      "4 series - 20 repeticoes",
+      "Abdomen",
+      "Fortalecimento direto da parede abdominal.",
+    ),
+  ];
+}
+
+class ExercicioFilter {
+  constructor(
+    private readonly filtroAtivo: string,
+    private readonly busca: string,
+    private readonly locaisExcluidos: string[],
+  ) {}
+
+  apply(exercicios: Exercicio[]) {
+    let lista = exercicios.filter((ex) => !this.locaisExcluidos.includes(ex.id));
+
+    if (this.filtroAtivo === "Meus Salvos") {
+      lista = lista.filter((ex) => ex.isFirebase());
+    } else if (this.filtroAtivo !== "Todos") {
+      lista = lista.filter((ex) => ex.categoria === this.filtroAtivo);
+    }
+
+    if (this.busca) {
+      lista = lista.filter((ex) =>
+        ex.nome.toLowerCase().includes(this.busca.toLowerCase()),
+      );
+    }
+
+    return lista;
+  }
+}
+
+interface MeusExerciciosState {
+  exerciciosList: Exercicio[];
+  filtroAtivo: string;
+  busca: string;
+  concluidos: string[];
+  locaisExcluidos: string[];
+}
+
+class MeusExerciciosScreen extends Component<
+  LocalSearchParamsProps,
+  MeusExerciciosState
+> {
+  private readonly paramReader: LocalSearchParamReader;
+  private unsubscribeExercicios?: Unsubscribe;
+
+  constructor(props: LocalSearchParamsProps) {
+    super(props);
+
+    this.paramReader = new LocalSearchParamReader(props.params);
+    const categoriaInicial = this.paramReader.get("categoriaInicial", "Todos");
+
+    this.state = {
+      exerciciosList: ExercicioCatalogo.padrao,
+      filtroAtivo: categoriaInicial,
+      busca: "",
+      concluidos: [],
+      locaisExcluidos: [],
     };
+  }
 
-    const unsubscribe = onSnapshot(
+  componentDidMount() {
+    this.carregarConcluidos();
+    this.assinarExercicios();
+  }
+
+  componentWillUnmount() {
+    this.unsubscribeExercicios?.();
+  }
+
+  private get exerciciosFiltrados() {
+    return new ExercicioFilter(
+      this.state.filtroAtivo,
+      this.state.busca,
+      this.state.locaisExcluidos,
+    ).apply(this.state.exerciciosList);
+  }
+
+  private carregarConcluidos = async () => {
+    const salvos = await AsyncStorage.getItem("exerciciosConcluidos");
+
+    if (salvos) {
+      this.setState({ concluidos: JSON.parse(salvos) });
+    }
+  };
+
+  private carregarEdicoesPadrao = async () => {
+    const raw = await AsyncStorage.getItem("edicoesPadrao");
+    return raw ? JSON.parse(raw) : {};
+  };
+
+  private assinarExercicios() {
+    this.unsubscribeExercicios = onSnapshot(
       collection(db, "exercicios"),
       async (snapshot) => {
-        const edicoes = await carregarEdicoesPadrao();
-
-        const exerciciosFirebase = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          let cat = "Superior";
-          const grupoCheck = (data.grupoMuscular || "").toLowerCase();
-          if (
-            grupoCheck.includes("perna") ||
-            grupoCheck.includes("inferior") ||
-            grupoCheck.includes("glúteo")
-          )
-            cat = "Inferior";
-          else if (grupoCheck.includes("abd")) cat = "Abdômen";
-          else if (
-            grupoCheck.includes("cardio") ||
-            grupoCheck.includes("esteira")
-          )
-            cat = "Cardio";
-          else if (
-            grupoCheck.includes("costas") ||
-            grupoCheck.includes("dorsal")
-          )
-            cat = "Costas";
-          else if (grupoCheck.includes("alongamento")) cat = "Alongamento";
-          return {
-            id: doc.id,
-            nome: data.nome || "Sem nome",
-            grupo: data.grupoMuscular || "Geral",
-            seriesRep: `${data.series} séries • ${data.repeticoes}`,
-            categoria: cat,
-            instrucoes: data.descricao || "",
-            ...data,
-          } as Exercicio;
-        });
-
-        // Aplica edições locais nos exercícios padrão
-        const padraoAtualizado = EXERCICIOS_PADRAO.map((ex) =>
-          edicoes[ex.id] ? { ...ex, ...edicoes[ex.id] } : ex,
+        const edicoes = await this.carregarEdicoesPadrao();
+        const exerciciosFirebase = snapshot.docs.map((documento) =>
+          Exercicio.fromFirestore(documento.id, documento.data()),
+        );
+        const padraoAtualizado = ExercicioCatalogo.padrao.map((ex) =>
+          edicoes[ex.id] ? ex.withEdit(edicoes[ex.id]) : ex,
         );
 
-        setExerciciosList([...padraoAtualizado, ...exerciciosFirebase]);
+        this.setState({
+          exerciciosList: [...padraoAtualizado, ...exerciciosFirebase],
+        });
       },
     );
-    return () => unsubscribe();
-  }, []);
+  }
 
-  const exerciciosFiltrados = useMemo(() => {
-    let lista = exerciciosList.filter((ex) => !locaisExcluidos.includes(ex.id));
-    if (filtroAtivo === "Meus Salvos")
-      lista = lista.filter((ex) => ex.id.length > 10);
-    else if (filtroAtivo !== "Todos")
-      lista = lista.filter((ex) => ex.categoria === filtroAtivo);
-    if (busca)
-      lista = lista.filter((ex) =>
-        ex.nome.toLowerCase().includes(busca.toLowerCase()),
-      );
-    return lista;
-  }, [filtroAtivo, busca, exerciciosList, locaisExcluidos]);
+  private toggleConcluido = async (id: string) => {
+    const novaLista = this.state.concluidos.includes(id)
+      ? this.state.concluidos.filter((item) => item !== id)
+      : [...this.state.concluidos, id];
 
-  const toggleConcluido = async (id: string) => {
-    const novaLista = concluidos.includes(id)
-      ? concluidos.filter((i) => i !== id)
-      : [...concluidos, id];
-    setConcluidos(novaLista);
-    await AsyncStorage.setItem(
-      "exerciciosConcluidos",
-      JSON.stringify(novaLista),
-    );
+    this.setState({ concluidos: novaLista });
+    await AsyncStorage.setItem("exerciciosConcluidos", JSON.stringify(novaLista));
   };
 
-  const executarExclusao = async (id: string) => {
-    if (id.length > 5) await deleteDoc(doc(db, "exercicios", id));
-    else setLocaisExcluidos((prev) => [...prev, id]);
-    Alert.alert("Pronto!", "Exercício apagado com sucesso.");
+  private executarExclusao = async (id: string) => {
+    if (id.length > 5) {
+      await deleteDoc(doc(db, "exercicios", id));
+    } else {
+      this.setState((estadoAtual) => ({
+        locaisExcluidos: [...estadoAtual.locaisExcluidos, id],
+      }));
+    }
+
+    Alert.alert("Pronto!", "Exercicio apagado com sucesso.");
   };
 
-  const handleExcluir = (id: string, nome: string) => {
-    Alert.alert(
-      "Excluir Exercício",
-      `Tem certeza que deseja excluir "${nome}"?`,
-      [
-        { text: "Cancelar" },
-        {
-          text: "Excluir",
-          style: "destructive",
-          onPress: () => executarExclusao(id),
-        },
-      ],
-    );
+  private handleExcluir = (id: string, nome: string) => {
+    Alert.alert("Excluir Exercicio", `Tem certeza que deseja excluir "${nome}"?`, [
+      { text: "Cancelar" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => this.executarExclusao(id),
+      },
+    ]);
   };
 
-  // CORREÇÃO: adiciona flag isFirebase nos params
-  const handleEditar = (item: Exercicio) => {
-    const isFirebase = item.id.length > 10;
+  private handleEditar = (item: Exercicio) => {
     router.push({
       pathname: "/criar-exercicios",
       params: {
@@ -334,140 +412,159 @@ export default function MeusExerciciosScreen() {
         grupoMuscular: item.grupo,
         instrucoes: item.instrucoes,
         editando: "true",
-        isFirebase: isFirebase ? "true" : "false",
+        isFirebase: item.isFirebase() ? "true" : "false",
       },
     });
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerLaranja}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.logoText}>FitMatch</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
-        </TouchableOpacity>
+  private abrirDetalhes = (item: Exercicio) => {
+    router.push({
+      pathname: "/detalhes",
+      params: {
+        id: item.id,
+        nome: item.nome,
+        grupo: item.grupo,
+        seriesRep: item.seriesRep,
+        categoria: item.categoria,
+        instrucoes: item.instrucoes,
+      },
+    });
+  };
+
+  private renderHeader = () => (
+    <>
+      <View style={styles.titleContainer}>
+        <View style={styles.titleTextArea}>
+          <Text style={styles.mainTitle}>Biblioteca de exercicios</Text>
+          <Text style={styles.subTitleHeader}>Gerencie o seu treino</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.btnHistorico}
+            onPress={() => router.push("/historico-exercicios")}
+          >
+            <Text style={styles.btnHistoricoText}>Historico</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.btnNovoExercicio}
+            onPress={() => router.push("/criar-exercicios")}
+          >
+            <Text style={styles.btnNovoExercicioText}>+ Novo</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.content}>
-        <FlatList
-          data={exerciciosFiltrados}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={
-            <>
-              <View style={styles.titleContainer}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mainTitle}>Biblioteca de exercícios</Text>
-                  <Text style={styles.subTitleHeader}>
-                    Gerencie o seu treino
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.btnNovoExercicio}
-                  onPress={() => router.push("/criar-exercicios")}
-                >
-                  <Text style={styles.btnNovoExercicioText}>+ Novo</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.searchBox}>
-                <Ionicons name="search-outline" size={20} color="#A0A0A0" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Buscar exercício"
-                  value={busca}
-                  onChangeText={setBusca}
-                />
-              </View>
-              <View style={styles.filterWrapper}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {FILTROS_EXERCICIOS.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      onPress={() => setFiltroAtivo(cat)}
-                      style={styles.filterTabContainer}
-                    >
-                      <Text
-                        style={[
-                          styles.filterText,
-                          filtroAtivo === cat && styles.filterTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                      {filtroAtivo === cat && (
-                        <View style={styles.barrinhaLaranjaAtiva} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </>
-          }
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.cardFigma,
-                concluidos.includes(item.id) && styles.cardConcluido,
-              ]}
-            >
-              <View style={styles.cardInfoContainer}>
-                <TouchableOpacity
-                  onPress={() => toggleConcluido(item.id)}
-                  style={styles.checkbox}
-                >
-                  <Ionicons
-                    name={
-                      concluidos.includes(item.id)
-                        ? "checkbox"
-                        : "square-outline"
-                    }
-                    size={28}
-                    color={concluidos.includes(item.id) ? "#4CAF50" : "#A0A0A0"}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cardInfoTouchable}
-                  onPress={() =>
-                    router.push({ pathname: "/detalhes", params: { ...item } })
-                  }
-                >
-                  <View style={styles.iconHalterBoxLaranja}>
-                    <MaterialCommunityIcons
-                      name={
-                        item.categoria === "Alongamento" ? "yoga" : "dumbbell"
-                      }
-                      size={30}
-                      color="#FFF"
-                    />
-                  </View>
-                  <View style={styles.textContainer}>
-                    <Text style={styles.workoutTitle}>{item.nome}</Text>
-                    <Text style={styles.workoutSub}>{item.grupo}</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() => handleEditar(item)}
-                >
-                  <Text style={styles.editText}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => handleExcluir(item.id, item.nome)}
-                >
-                  <Text style={styles.deleteText}>Excluir</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+      <View style={styles.searchBox}>
+        <Ionicons name="search-outline" size={20} color="#A0A0A0" />
+        <TextInput
+          style={styles.input}
+          placeholder="Buscar exercicio"
+          value={this.state.busca}
+          onChangeText={(valor) => this.setState({ busca: valor })}
         />
       </View>
-    </SafeAreaView>
+      <View style={styles.filterWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {ExercicioCatalogo.filtros.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              onPress={() => this.setState({ filtroAtivo: cat })}
+              style={styles.filterTabContainer}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  this.state.filtroAtivo === cat && styles.filterTextActive,
+                ]}
+              >
+                {cat}
+              </Text>
+              {this.state.filtroAtivo === cat && (
+                <View style={styles.barrinhaLaranjaAtiva} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </>
   );
+
+  private renderExercicio = ({ item }: { item: Exercicio }) => {
+    const concluido = this.state.concluidos.includes(item.id);
+
+    return (
+      <View style={[styles.cardFigma, concluido && styles.cardConcluido]}>
+        <View style={styles.cardInfoContainer}>
+          <TouchableOpacity
+            onPress={() => this.toggleConcluido(item.id)}
+            style={styles.checkbox}
+          >
+            <Ionicons
+              name={concluido ? "checkbox" : "square-outline"}
+              size={28}
+              color={concluido ? "#4CAF50" : "#A0A0A0"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cardInfoTouchable}
+            onPress={() => this.abrirDetalhes(item)}
+          >
+            <View style={styles.iconHalterBoxLaranja}>
+              <MaterialCommunityIcons
+                name={item.categoria === "Alongamento" ? "yoga" : "dumbbell"}
+                size={30}
+                color="#FFF"
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.workoutTitle}>{item.nome}</Text>
+              <Text style={styles.workoutSub}>{item.grupo}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => this.handleEditar(item)}
+          >
+            <Text style={styles.editText}>Editar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => this.handleExcluir(item.id, item.nome)}
+          >
+            <Text style={styles.deleteText}>Excluir</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  render() {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerLaranja}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.logoText}>FitMatch</Text>
+          <TouchableOpacity>
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.content}>
+          <FlatList
+            data={this.exerciciosFiltrados}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={this.renderHeader}
+            renderItem={this.renderExercicio}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 }
+
+export default LocalSearchParamsAdapter.connect(MeusExerciciosScreen);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FAFAFA" },
@@ -488,9 +585,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
     marginBottom: 15,
+    gap: 10,
   },
+  titleTextArea: { flex: 1 },
   mainTitle: { fontSize: 24, fontWeight: "bold", color: "#111" },
   subTitleHeader: { fontSize: 13, color: "#707070", marginTop: 2 },
+  headerActions: { flexDirection: "row", gap: 8 },
+  btnHistorico: {
+    borderWidth: 1,
+    borderColor: "#F28C1B",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#FFF",
+  },
+  btnHistoricoText: { color: "#F28C1B", fontWeight: "bold", fontSize: 13 },
   btnNovoExercicio: {
     backgroundColor: "#F28C1B",
     paddingVertical: 8,

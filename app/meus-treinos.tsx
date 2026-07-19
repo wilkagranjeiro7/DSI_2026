@@ -1,6 +1,13 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router } from "expo-router";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  Unsubscribe,
+} from "firebase/firestore";
+import React, { Component } from "react";
 import {
   Alert,
   FlatList,
@@ -14,170 +21,201 @@ import {
   View,
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
+import { db } from "../src/utils/firebaseConfig";
 
-// Importações do Firebase
-import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
-import { db } from "../src/utils/firebaseConfig"; // Mesma rota de antes!
+class Treino {
+  constructor(
+    readonly id: string,
+    readonly nome: string,
+    readonly descricao: string,
+    readonly info: string,
+    readonly tipo: string,
+    readonly diasSemana = "",
+    readonly duracao = "",
+    readonly observacoes = "",
+  ) {}
 
-interface Treino {
-  id: string;
-  nome: string;
-  descricao: string;
-  info: string;
-  tipo: string;
-  diasSemana?: string; // Para enviar pro editar depois
-  duracao?: string; // Para enviar pro editar depois
+  static fromFirestore(id: string, data: any) {
+    return new Treino(
+      id,
+      data.nome || "Sem nome",
+      data.objetivo || "Sem descricao",
+      `${data.duracao || "Tempo N/A"} - ${data.dias || "Dias N/A"}`,
+      data.tipo || "Forca",
+      data.dias || "",
+      data.duracao || "",
+      data.observacoes || "",
+    );
+  }
+
+  isFirebase() {
+    return this.id.length > 10;
+  }
 }
 
-// Lista padrão inicial
-const TREINOS_PADRAO: Treino[] = [
-  {
-    id: "0",
-    nome: "Treino de Alongamento",
-    descricao: "Parte Superior e Inferior",
-    info: "10 min • Aquecimento",
-    tipo: "Alongamento",
-  },
-  {
-    id: "1",
-    nome: "Treino Superior",
-    descricao: "Peito, ombro e tríceps",
-    info: "45 min • Seg/Qua",
-    tipo: "Força",
-  },
-  {
-    id: "2",
-    nome: "Treino Inferior",
-    descricao: "Pernas e glúteos",
-    info: "55 min • Ter/Qui",
-    tipo: "Força",
-  },
-  {
-    id: "3",
-    nome: "Cardio HIIT",
-    descricao: "Condicionamento e resistência",
-    info: "30 min • Sex",
-    tipo: "Cardio",
-  },
-];
+class TreinoCatalogo {
+  static readonly padrao: Treino[] = [
+    new Treino(
+      "0",
+      "Treino de Alongamento",
+      "Parte Superior e Inferior",
+      "10 min - Aquecimento",
+      "Alongamento",
+    ),
+    new Treino(
+      "1",
+      "Treino Superior",
+      "Peito, ombro e triceps",
+      "45 min - Seg/Qua",
+      "Forca",
+    ),
+    new Treino(
+      "2",
+      "Treino Inferior",
+      "Pernas e gluteos",
+      "55 min - Ter/Qui",
+      "Forca",
+    ),
+    new Treino(
+      "3",
+      "Cardio HIIT",
+      "Condicionamento e resistencia",
+      "30 min - Sex",
+      "Cardio",
+    ),
+  ];
 
-// ADICIONADO: Filtro "Meus Salvos"
-const FILTROS: string[] = [
-  "Todos",
-  "Meus Salvos",
-  "Força",
-  "Cardio",
-  "Alongamento",
-];
+  static readonly filtros = [
+    "Todos",
+    "Meus Salvos",
+    "Forca",
+    "Cardio",
+    "Alongamento",
+  ];
+}
 
-export default function MeusTreinosScreen() {
-  const router = useRouter();
+class TreinoFilter {
+  constructor(
+    private readonly filtro: string,
+    private readonly busca: string,
+    private readonly locaisExcluidos: string[],
+  ) {}
 
-  const [treinosList, setTreinosList] = useState<Treino[]>(TREINOS_PADRAO);
-  const [busca, setBusca] = useState<string>("");
-  const [filtro, setFiltro] = useState<string>("Todos");
+  apply(treinos: Treino[]) {
+    return treinos.filter((item) => {
+      if (this.locaisExcluidos.includes(item.id)) {
+        return false;
+      }
 
-  // Caixinha para os treinos padrões que foram deletados
-  const [locaisExcluidos, setLocaisExcluidos] = useState<string[]>([]);
+      const matchBusca = item.nome
+        .toLowerCase()
+        .includes(this.busca.toLowerCase());
+      let matchFiltro = true;
 
-  // Escutando a coleção de "treinos" no Firebase
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "treinos"), (snapshot) => {
-      const treinosFirebase = snapshot.docs.map((doc) => {
-        const data = doc.data();
+      if (this.filtro === "Meus Salvos") {
+        matchFiltro = item.isFirebase();
+      } else if (this.filtro !== "Todos") {
+        matchFiltro = item.tipo === this.filtro;
+      }
 
-        return {
-          id: doc.id,
-          nome: data.nome || "Sem nome",
-          descricao: data.objetivo || "Sem descrição",
-          info: `${data.duracao || "Tempo N/A"} • ${data.dias || "Dias N/A"}`,
-          tipo: data.tipo || "Força", // Ex: Força, Cardio, etc.
-          diasSemana: data.dias || "",
-          duracao: data.duracao || "",
-          ...data, // Guarda tudo para passar para o modo Editar
-        } as Treino;
-      });
-
-      setTreinosList([...TREINOS_PADRAO, ...treinosFirebase]);
+      return matchBusca && matchFiltro;
     });
+  }
+}
 
-    return () => unsubscribe();
-  }, []);
-
-  // Lógica dos filtros atualizada
-  const treinosFiltrados = treinosList.filter((item) => {
-    // 1. Esconde os que você excluiu localmente
-    if (locaisExcluidos.includes(item.id)) return false;
-
-    // 2. Filtro da busca digitada
-    const matchBusca = item.nome.toLowerCase().includes(busca.toLowerCase());
-
-    // 3. Filtro dos botões (Chips)
-    let matchFiltro = true;
-    if (filtro === "Meus Salvos") {
-      matchFiltro = item.id.length > 10; // Só mostra os do Firebase
-    } else if (filtro !== "Todos") {
-      matchFiltro = item.tipo === filtro;
+class AlertPresenter {
+  static info(title: string, message: string) {
+    if (Platform.OS === "web") {
+      window.alert(message);
+      return;
     }
 
-    return matchBusca && matchFiltro;
-  });
+    Alert.alert(title, message);
+  }
 
-  const executarExclusao = async (id: string) => {
+  static confirmDelete(nome: string, onConfirm: () => void) {
+    if (Platform.OS === "web") {
+      if (window.confirm(`Tem certeza que deseja excluir o "${nome}"?`)) {
+        onConfirm();
+      }
+      return;
+    }
+
+    Alert.alert("Excluir Treino", `Tem certeza que deseja excluir o "${nome}"?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: onConfirm,
+      },
+    ]);
+  }
+}
+
+interface MeusTreinosState {
+  treinosList: Treino[];
+  busca: string;
+  filtro: string;
+  locaisExcluidos: string[];
+}
+
+export default class MeusTreinosScreen extends Component<object, MeusTreinosState> {
+  private unsubscribeTreinos?: Unsubscribe;
+
+  state: MeusTreinosState = {
+    treinosList: TreinoCatalogo.padrao,
+    busca: "",
+    filtro: "Todos",
+    locaisExcluidos: [],
+  };
+
+  componentDidMount() {
+    this.unsubscribeTreinos = onSnapshot(collection(db, "treinos"), (snapshot) => {
+      const treinosFirebase = snapshot.docs.map((documento) =>
+        Treino.fromFirestore(documento.id, documento.data()),
+      );
+
+      this.setState({
+        treinosList: [...TreinoCatalogo.padrao, ...treinosFirebase],
+      });
+    });
+  }
+
+  componentWillUnmount() {
+    this.unsubscribeTreinos?.();
+  }
+
+  private get treinosFiltrados() {
+    return new TreinoFilter(
+      this.state.filtro,
+      this.state.busca,
+      this.state.locaisExcluidos,
+    ).apply(this.state.treinosList);
+  }
+
+  private executarExclusao = async (id: string) => {
     if (id.length > 5) {
-      // ID do Firebase
       try {
         await deleteDoc(doc(db, "treinos", id));
-        if (Platform.OS === "web") {
-          window.alert("Treino apagado com sucesso.");
-        } else {
-          Alert.alert("Pronto!", "Treino apagado com sucesso.");
-        }
+        AlertPresenter.info("Pronto!", "Treino apagado com sucesso.");
       } catch (erro: any) {
         console.error("ERRO FIREBASE: ", erro);
-        if (Platform.OS === "web") {
-          window.alert("Erro de Permissão: O Firebase não deixou apagar.");
-        } else {
-          Alert.alert("Erro", "O Firebase não deixou apagar.");
-        }
+        AlertPresenter.info("Erro", "O Firebase nao deixou apagar.");
       }
-    } else {
-      // ID da lista padrão
-      setLocaisExcluidos((prev) => [...prev, id]);
-      if (Platform.OS === "web") {
-        window.alert("Treino apagado com sucesso.");
-      } else {
-        Alert.alert("Pronto!", "Treino apagado com sucesso.");
-      }
+      return;
     }
+
+    this.setState((estadoAtual) => ({
+      locaisExcluidos: [...estadoAtual.locaisExcluidos, id],
+    }));
+    AlertPresenter.info("Pronto!", "Treino apagado com sucesso.");
   };
 
-  const handleExcluir = (id: string, nome: string) => {
-    if (Platform.OS === "web") {
-      const confirmou = window.confirm(
-        `Tem certeza que deseja excluir o "${nome}"?`,
-      );
-      if (confirmou) {
-        executarExclusao(id);
-      }
-    } else {
-      Alert.alert(
-        "Excluir Treino",
-        `Tem certeza que deseja excluir o "${nome}"?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Excluir",
-            style: "destructive",
-            onPress: () => executarExclusao(id),
-          },
-        ],
-      );
-    }
+  private handleExcluir = (id: string, nome: string) => {
+    AlertPresenter.confirmDelete(nome, () => this.executarExclusao(id));
   };
 
-  const handleEditar = (item: Treino) => {
-    // Manda os dados para a tela "criar-treino.tsx" que atualizamos antes
+  private handleEditar = (item: Treino) => {
     router.push({
       pathname: "/criar-treino",
       params: {
@@ -185,151 +223,154 @@ export default function MeusTreinosScreen() {
         nome: item.nome,
         objetivo: item.descricao,
         tipo: item.tipo,
-        dias: item.diasSemana || "",
-        duracao: item.duracao || "",
-        // Aqui você pode adicionar as observações se elas existirem no item
+        dias: item.diasSemana,
+        duracao: item.duracao,
+        observacoes: item.observacoes,
         editando: "true",
       },
     });
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>FitMatch</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
+  private renderHeader = () => (
+    <>
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.title}>Meus treinos</Text>
+          <Text style={styles.subtitle}>Gerencie seus planos de treino</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.newButton}
+          onPress={() => router.push("/criar-treino")}
+        >
+          <Text style={styles.newButtonText}>+ Novo treino</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        <FlatList
-          data={treinosFiltrados}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          ListHeaderComponent={
-            <>
-              <View style={styles.titleRow}>
-                <View>
-                  <Text style={styles.title}>Meus treinos</Text>
-                  <Text style={styles.subtitle}>
-                    Gerencie seus planos de treino
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.newButton}
-                  onPress={() => router.push("/criar-treino")}
-                >
-                  <Text style={styles.newButtonText}>+ Novo treino</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.label}>Busca</Text>
-              <View style={styles.searchBox}>
-                <Ionicons name="search" size={18} color="#9E9E9E" />
-                <TextInput
-                  placeholder="Buscar treino"
-                  style={styles.searchInput}
-                  value={busca}
-                  onChangeText={setBusca}
-                />
-              </View>
-
-              <View style={styles.filters}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 10 }}
-                >
-                  {FILTROS.map((item) => (
-                    <TouchableOpacity
-                      key={item}
-                      style={[
-                        styles.filterChip,
-                        filtro === item && styles.filterChipActive,
-                      ]}
-                      onPress={() => setFiltro(item)}
-                    >
-                      <Text
-                        style={[
-                          styles.filterText,
-                          filtro === item && styles.filterTextActive,
-                        ]}
-                      >
-                        {item}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </>
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() =>
-                router.push({
-                  pathname: "/meus-exercicios",
-                  params: { treinoSelecionado: item.nome },
-                })
-              }
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.iconBox}>
-                  <MaterialCommunityIcons
-                    name={item.tipo === "Alongamento" ? "yoga" : "dumbbell"}
-                    size={26}
-                    color="#F28C1B"
-                  />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.nome}</Text>
-                  <Text style={styles.cardDesc}>{item.descricao}</Text>
-                  <Text style={styles.cardInfo}>{item.info}</Text>
-                </View>
-              </View>
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() => handleEditar(item)}
-                >
-                  <Text style={styles.editText}>Editar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => handleExcluir(item.id, item.nome)}
-                >
-                  <Text style={styles.deleteText}>Excluir</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.exerciseBtn}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/meus-exercicios",
-                      params: { treinoSelecionado: item.nome },
-                    })
-                  }
-                >
-                  <Text style={styles.exerciseText}>Exercícios</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
+      <Text style={styles.label}>Busca</Text>
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color="#9E9E9E" />
+        <TextInput
+          placeholder="Buscar treino"
+          style={styles.searchInput}
+          value={this.state.busca}
+          onChangeText={(valor) => this.setState({ busca: valor })}
         />
       </View>
 
-      <BottomNavbar active="treinos" />
-
-    </SafeAreaView>
+      <View style={styles.filters}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 10 }}
+        >
+          {TreinoCatalogo.filtros.map((item) => (
+            <TouchableOpacity
+              key={item}
+              style={[
+                styles.filterChip,
+                this.state.filtro === item && styles.filterChipActive,
+              ]}
+              onPress={() => this.setState({ filtro: item })}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  this.state.filtro === item && styles.filterTextActive,
+                ]}
+              >
+                {item}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </>
   );
+
+  private renderTreino = ({ item }: { item: Treino }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() =>
+        router.push({
+          pathname: "/meus-exercicios",
+          params: { treinoSelecionado: item.nome },
+        })
+      }
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.iconBox}>
+          <MaterialCommunityIcons
+            name={item.tipo === "Alongamento" ? "yoga" : "dumbbell"}
+            size={26}
+            color="#F28C1B"
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{item.nome}</Text>
+          <Text style={styles.cardDesc}>{item.descricao}</Text>
+          <Text style={styles.cardInfo}>{item.info}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => this.handleEditar(item)}
+        >
+          <Text style={styles.editText}>Editar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => this.handleExcluir(item.id, item.nome)}
+        >
+          <Text style={styles.deleteText}>Excluir</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.exerciseBtn}
+          onPress={() =>
+            router.push({
+              pathname: "/meus-exercicios",
+              params: { treinoSelecionado: item.nome },
+            })
+          }
+        >
+          <Text style={styles.exerciseText}>Exercicios</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+
+  render() {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>FitMatch</Text>
+          <TouchableOpacity>
+            <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.content}>
+          <FlatList
+            data={this.treinosFiltrados}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListHeaderComponent={this.renderHeader}
+            renderItem={this.renderTreino}
+          />
+        </View>
+
+        <BottomNavbar active="treinos" />
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -427,5 +468,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#FFF3E0",
   },
-  exerciseText: { color: "#F28C1B", fontWeight: "600" }
+  exerciseText: { color: "#F28C1B", fontWeight: "600" },
 });

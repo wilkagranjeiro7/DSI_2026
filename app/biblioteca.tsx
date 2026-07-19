@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router"; // Alterado para a versão de classe (imperativa)
+import { router } from "expo-router";
 import React, { Component } from "react";
 import {
   FlatList,
@@ -13,107 +13,183 @@ import {
 } from "react-native";
 import BottomNavbar from "../src/components/BottomNavbar";
 
-// Mantendo os filtros organizados por categorias gerais de treino
-const CATEGORIAS = [
-  "Todos",
-  "Hoje",
-  "Superior",
-  "Inferior",
-  "Cardio",
-  "Abdômen",
-  "Alongamento",
-];
-
-// Apenas os CARDS DOS TREINOS (Sem misturar exercícios aqui dentro!)
-const TREINOS = [
-  {
-    id: "1",
-    nome: "Treino Superior",
-    divisao: "Peito, ombro, costas e bíceps",
-    duracao: "45 min",
-    dias: "Seg/Qua",
-    categoria: "Superior",
-  },
-  {
-    id: "2",
-    nome: "Treino Inferior",
-    divisao: "Pernas, glúteos e panturrilha",
-    duracao: "55 min",
-    dias: "Ter/Qui",
-    categoria: "Inferior",
-  },
-  {
-    id: "3",
-    nome: "Cardio HIIT",
-    divisao: "Condicionamento e resistência",
-    duracao: "30 min",
-    dias: "Sex",
-    categoria: "Cardio",
-  },
-  {
-    id: "4",
-    nome: "Foco no Core",
-    divisao: "Fortalecimento de abdômen",
-    duracao: "15 min",
-    dias: "Seg/Qua/Sex",
-    categoria: "Abdômen",
-  },
-  {
-    id: "5",
-    nome: "Mobilidade Geral",
-    divisao: "Alongamento e flexibilidade",
-    duracao: "20 min",
-    dias: "Sáb/Dom",
-    categoria: "Alongamento",
-  },
-];
-
-// Interfaces para o TypeScript na Classe
-interface Props {}
-
-interface State {
-  categoriaAtiva: string;
-  busca: string;
+class TreinoBiblioteca {
+  constructor(
+    readonly id: string,
+    readonly nome: string,
+    readonly divisao: string,
+    readonly duracao: string,
+    readonly dias: string,
+    readonly categoria: string,
+  ) {}
 }
 
-export default class BibliotecaRoute extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    // Inicialização do estado na POO
-    this.state = {
-      categoriaAtiva: "Todos",
-      busca: "",
-    };
+class BibliotecaTreinoRepository {
+  private readonly categorias = [
+    "Todos",
+    "Hoje",
+    "Superior",
+    "Inferior",
+    "Cardio",
+    "Abdomen",
+    "Alongamento",
+  ];
+
+  private readonly treinos = [
+    new TreinoBiblioteca(
+      "1",
+      "Treino Superior",
+      "Peito, ombro, costas e biceps",
+      "45 min",
+      "Seg/Qua",
+      "Superior",
+    ),
+    new TreinoBiblioteca(
+      "2",
+      "Treino Inferior",
+      "Pernas, gluteos e panturrilha",
+      "55 min",
+      "Ter/Qui",
+      "Inferior",
+    ),
+    new TreinoBiblioteca(
+      "3",
+      "Cardio HIIT",
+      "Condicionamento e resistencia",
+      "30 min",
+      "Sex",
+      "Cardio",
+    ),
+    new TreinoBiblioteca(
+      "4",
+      "Foco no Core",
+      "Fortalecimento de abdomen",
+      "15 min",
+      "Seg/Qua/Sex",
+      "Abdomen",
+    ),
+    new TreinoBiblioteca(
+      "5",
+      "Mobilidade Geral",
+      "Alongamento e flexibilidade",
+      "20 min",
+      "Sab/Dom",
+      "Alongamento",
+    ),
+  ];
+
+  listarCategorias() {
+    return this.categorias;
   }
 
-  // Métodos para atualizar o estado
-  setCategoriaAtiva = (categoria: string): void => {
-    this.setState({ categoriaAtiva: categoria });
-  };
-
-  setBusca = (texto: string): void => {
-    this.setState({ busca: texto });
-  };
-
-  // Substitui o useMemo, calculando os treinos filtrados
-  get treinosFiltrados() {
-    const { categoriaAtiva, busca } = this.state;
-    return TREINOS.filter((treino) => {
+  filtrar(categoriaAtiva: string, busca: string) {
+    return this.treinos.filter((treino) => {
       const correspondeCategoria =
         categoriaAtiva === "Todos" || treino.categoria === categoriaAtiva;
       const correspondeBusca = treino.nome
         .toLowerCase()
         .includes(busca.toLowerCase());
+
       return correspondeCategoria && correspondeBusca;
     });
   }
+}
+
+interface BibliotecaState {
+  categoriaAtiva: string;
+  busca: string;
+}
+
+export default class BibliotecaRoute extends Component<object, BibliotecaState> {
+  private readonly repository = new BibliotecaTreinoRepository();
+
+  state: BibliotecaState = {
+    categoriaAtiva: "Todos",
+    busca: "",
+  };
+
+  private abrirTreino = (item: TreinoBiblioteca) => {
+    router.push({
+      pathname: "/meus-exercicios",
+      params: {
+        treinoSelecionado: item.nome,
+        categoriaTreino: item.categoria,
+      },
+    });
+  };
+
+  private renderCategoria = (cat: string) => {
+    const { categoriaAtiva } = this.state;
+
+    return (
+      <TouchableOpacity
+        key={cat}
+        onPress={() => this.setState({ categoriaAtiva: cat })}
+        style={[
+          styles.filterTab,
+          categoriaAtiva === cat && styles.filterTabActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.filterText,
+            categoriaAtiva === cat && styles.filterTextActive,
+          ]}
+        >
+          {cat}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  private renderTreino = ({ item }: { item: TreinoBiblioteca }) => (
+    <TouchableOpacity
+      style={styles.cardFigma}
+      activeOpacity={0.7}
+      onPress={() => this.abrirTreino(item)}
+    >
+      <View style={styles.cardInfoContainer}>
+        <View style={styles.iconWrapper}>
+          <MaterialCommunityIcons name="dumbbell" size={24} color="#F28C1B" />
+        </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.workoutTitle}>{item.nome}</Text>
+          <Text style={styles.workoutSub}>{item.divisao}</Text>
+          <Text style={styles.workoutSpecs}>
+            {item.duracao} - {item.dias}
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color="#C0C0C0"
+          style={{ alignSelf: "center" }}
+        />
+      </View>
+
+      <View style={styles.actionButtonsRow}>
+        <TouchableOpacity
+          style={styles.btnOutline}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={styles.btnOutlineText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnOutline}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={styles.btnOutlineText}>Excluir</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 
   render() {
     const { categoriaAtiva, busca } = this.state;
+    const treinosFiltrados = this.repository.filtrar(categoriaAtiva, busca);
 
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header Superior */}
         <View style={styles.headerLaranja}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -125,7 +201,6 @@ export default class BibliotecaRoute extends Component<Props, State> {
         </View>
 
         <View style={styles.content}>
-          {/* Cabeçalho da Lista */}
           <View style={styles.titleContainer}>
             <View>
               <Text style={styles.mainTitle}>Meus treinos</Text>
@@ -142,7 +217,6 @@ export default class BibliotecaRoute extends Component<Props, State> {
             </TouchableOpacity>
           </View>
 
-          {/* Caixa de Busca */}
           <View style={styles.searchBox}>
             <Ionicons name="search-outline" size={20} color="#A0A0A0" />
             <TextInput
@@ -150,97 +224,25 @@ export default class BibliotecaRoute extends Component<Props, State> {
               placeholderTextColor="#A0A0A0"
               style={styles.input}
               value={busca}
-              onChangeText={this.setBusca}
+              onChangeText={(valor) => this.setState({ busca: valor })}
             />
           </View>
 
-          {/* Filtros em Pílula */}
           <View style={styles.filterWrapper}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {CATEGORIAS.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => this.setCategoriaAtiva(cat)}
-                  style={[
-                    styles.filterTab,
-                    categoriaAtiva === cat && styles.filterTabActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterText,
-                      categoriaAtiva === cat && styles.filterTextActive,
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {this.repository.listarCategorias().map(this.renderCategoria)}
             </ScrollView>
           </View>
 
-          {/* Lista de Cards */}
           <FlatList
-            data={this.treinosFiltrados}
+            data={treinosFiltrados}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.cardFigma}
-                activeOpacity={0.7}
-                onPress={() => {
-                  // Passa a categoria do treino para a tela de exercícios filtrar automaticamente
-                  router.push({
-                    pathname: "/meus-exercicios",
-                    params: {
-                      treinoSelecionado: item.nome,
-                      categoriaTreino: item.categoria,
-                    },
-                  });
-                }}
-              >
-                <View style={styles.cardInfoContainer}>
-                  <View style={styles.iconWrapper}>
-                    <MaterialCommunityIcons
-                      name="dumbbell"
-                      size={24}
-                      color="#F28C1B"
-                    />
-                  </View>
-                  <View style={styles.textContainer}>
-                    <Text style={styles.workoutTitle}>{item.nome}</Text>
-                    <Text style={styles.workoutSub}>{item.divisao}</Text>
-                    <Text style={styles.workoutSpecs}>
-                      {item.duracao} • {item.dias}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color="#C0C0C0"
-                    style={{ alignSelf: "center" }}
-                  />
-                </View>
-
-                <View style={styles.actionButtonsRow}>
-                  <TouchableOpacity
-                    style={styles.btnOutline}
-                    onPress={(e) => e.stopPropagation()}
-                  >
-                    <Text style={styles.btnOutlineText}>Editar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.btnOutline}
-                    onPress={(e) => e.stopPropagation()}
-                  >
-                    <Text style={styles.btnOutlineText}>Excluir</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={this.renderTreino}
             contentContainerStyle={{ paddingBottom: 20 }}
           />
         </View>
+        <BottomNavbar active="treinos" />
       </SafeAreaView>
     );
   }

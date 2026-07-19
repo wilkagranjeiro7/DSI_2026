@@ -1,15 +1,6 @@
 import React, { Component } from "react";
-import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import {
-    MetaFormulario,
-    TipoRelacionamentoFormulario,
-} from "../../models/Meta";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { MetaFormulario, TipoRelacionamentoFormulario } from "../../models/Meta";
 
 interface MetaFormProps {
   form: MetaFormulario;
@@ -66,9 +57,7 @@ export default class MetaForm extends Component<MetaFormProps> {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>
-          {editandoId ? "Editar meta" : "Nova meta"}
-        </Text>
+        <Text style={styles.title}>{editandoId ? "Editar meta" : "Nova meta"}</Text>
         <Text style={styles.subtitle}>Defina um objetivo para acompanhar</Text>
 
         {erro ? <Text style={styles.error}>{erro}</Text> : null}

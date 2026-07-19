@@ -1,78 +1,128 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React from "react";
+import { router } from "expo-router";
+import React, { Component, ReactNode } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type ActiveTab = "home" | "treinos" | "metas" | "mapa" | "perfil";
+type AppRoute = "/home" | "/meus-treinos" | "/metas" | "/map" | "/perfil";
 
 type BottomNavbarProps = {
   active: ActiveTab;
 };
 
-const ACTIVE_COLOR = "#F28C1B";
-const INACTIVE_COLOR = "#9CA3AF";
+class BottomNavbarColors {
+  static active = "#F28C1B";
+  static inactive = "#9CA3AF";
+}
 
-export default function BottomNavbar({ active }: BottomNavbarProps) {
-  const router = useRouter();
+export default class BottomNavbar extends Component<BottomNavbarProps> {
+  private navigateTo = (route: AppRoute) => {
+    router.push(route);
+  };
 
-  return (
-    <View style={styles.navbar}>
-      <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")}>
-        <Ionicons
-          name="home-outline"
-          size={22}
-          color={active === "home" ? ACTIVE_COLOR : INACTIVE_COLOR}
-        />
-        <Text style={[styles.tabText, active === "home" && styles.tabTextActive]}>
-          Início
+  private renderTab(
+    route: AppRoute,
+    tab: ActiveTab,
+    label: string,
+    icon: ReactNode,
+  ) {
+    const isActive = this.props.active === tab;
+
+    return (
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => this.navigateTo(route)}
+      >
+        {icon}
+        <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+          {label}
         </Text>
       </TouchableOpacity>
+    );
+  }
 
-      <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/meus-treinos")}>
-        <MaterialCommunityIcons
-          name="dumbbell"
-          size={22}
-          color={active === "treinos" ? ACTIVE_COLOR : INACTIVE_COLOR}
-        />
-        <Text style={[styles.tabText, active === "treinos" && styles.tabTextActive]}>
-          Treinos
-        </Text>
-      </TouchableOpacity>
+  render() {
+    const { active } = this.props;
 
-      <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/metas")}>
-        <Feather
-          name="target"
-          size={22}
-          color={active === "metas" ? ACTIVE_COLOR : INACTIVE_COLOR}
-        />
-        <Text style={[styles.tabText, active === "metas" && styles.tabTextActive]}>
-          Metas
-        </Text>
-      </TouchableOpacity>
+    return (
+      <View style={styles.navbar}>
+        {this.renderTab(
+          "/home",
+          "home",
+          "Inicio",
+          <Ionicons
+            name="home-outline"
+            size={22}
+            color={
+              active === "home"
+                ? BottomNavbarColors.active
+                : BottomNavbarColors.inactive
+            }
+          />,
+        )}
 
-      <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/map")}>
-        <Ionicons
-          name="map-outline"
-          size={22}
-          color={active === "mapa" ? ACTIVE_COLOR : INACTIVE_COLOR}
-        />
-        <Text style={[styles.tabText, active === "mapa" && styles.tabTextActive]}>
-          Mapa
-        </Text>
-      </TouchableOpacity>
+        {this.renderTab(
+          "/meus-treinos",
+          "treinos",
+          "Treinos",
+          <MaterialCommunityIcons
+            name="dumbbell"
+            size={22}
+            color={
+              active === "treinos"
+                ? BottomNavbarColors.active
+                : BottomNavbarColors.inactive
+            }
+          />,
+        )}
 
-      <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/perfil")}>
-        <Ionicons
-          name="person-outline"
-          size={22}
-          color={active === "perfil" ? ACTIVE_COLOR : INACTIVE_COLOR}
-        />
-        <Text style={[styles.tabText, active === "perfil" && styles.tabTextActive]}>
-          Perfil
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+        {this.renderTab(
+          "/metas",
+          "metas",
+          "Metas",
+          <Feather
+            name="target"
+            size={22}
+            color={
+              active === "metas"
+                ? BottomNavbarColors.active
+                : BottomNavbarColors.inactive
+            }
+          />,
+        )}
+
+        {this.renderTab(
+          "/map",
+          "mapa",
+          "Mapa",
+          <Ionicons
+            name="map-outline"
+            size={22}
+            color={
+              active === "mapa"
+                ? BottomNavbarColors.active
+                : BottomNavbarColors.inactive
+            }
+          />,
+        )}
+
+        {this.renderTab(
+          "/perfil",
+          "perfil",
+          "Perfil",
+          <Ionicons
+            name="person-outline"
+            size={22}
+            color={
+              active === "perfil"
+                ? BottomNavbarColors.active
+                : BottomNavbarColors.inactive
+            }
+          />,
+        )}
+      </View>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -104,11 +154,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 10,
-    color: INACTIVE_COLOR,
+    color: BottomNavbarColors.inactive,
     marginTop: 3,
     fontWeight: "700",
   },
   tabTextActive: {
-    color: ACTIVE_COLOR,
+    color: BottomNavbarColors.active,
   },
 });

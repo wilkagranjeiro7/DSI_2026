@@ -1,26 +1,21 @@
-<<<<<<< Updated upstream
 import { router } from "expo-router";
 import { doc, setDoc } from "firebase/firestore";
 import React, { Component } from "react";
-=======
-import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import React, { useState } from "react";
->>>>>>> Stashed changes
 import {
   ActivityIndicator,
   Alert,
   Image,
-  SafeAreaView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
-<<<<<<< Updated upstream
 import AuthService from "../src/services/AuthService";
 import { auth, db } from "../src/utils/firebaseConfig";
 
@@ -84,70 +79,11 @@ export default class SignUpScreen extends Component<object, SignUpState> {
         errorMsg:
           "Erro: " + (err.message || "Falha ao conectar. Verifique o console."),
       });
-=======
-import { auth, db } from "../src/utils/firebaseConfig";
-
-export default function SignUpScreen() {
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  const fazerCadastro = async () => {
-    console.log("Botão pressionado!");
-
-    if (!email.trim() || !senha.trim() || !nome.trim()) {
-      Alert.alert(
-        "Atenção",
-        "Kassy, preencha todos os campos antes de continuar!",
-      );
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        senha,
-      );
-
-      const user = userCredential.user;
-
-      await setDoc(doc(db, "usuarios", user.uid), {
-        nome: nome,
-        email: email.trim(),
-        uid: user.uid,
-        createdAt: serverTimestamp(),
-      });
-
-      Alert.alert("Parabéns!", "Conta criada com sucesso no FitMatch!");
-      router.replace("/");
-    } catch (error: any) {
-      console.error("ERRO DETALHADO:", error);
-
-      if (error.code === "auth/email-already-in-use") {
-        Alert.alert("Ops!", "Este e-mail já está sendo usado.");
-      } else if (error.code === "auth/weak-password") {
-        Alert.alert(
-          "Senha Fraca",
-          "A senha precisa ter pelo menos 6 caracteres.",
-        );
-      } else {
-        Alert.alert(
-          "Erro",
-          "Não conseguimos salvar. Verifique a internet ou as chaves do Firebase.",
-        );
-      }
->>>>>>> Stashed changes
     } finally {
       this.setState({ loading: false });
     }
   };
 
-<<<<<<< Updated upstream
   render() {
     const { nome, email, senha, loading, errorMsg } = this.state;
 
@@ -233,84 +169,11 @@ export default function SignUpScreen() {
             >
               {loading ? (
                 <ActivityIndicator color="#FFF" />
-=======
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Cabeçalho Fixo */}
-      <View style={styles.headerTop}>
-        <Text style={styles.headerTitle}>FitMatch</Text>
-      </View>
-
-      {/* ScrollView com as barras escondidas */}
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logo}
-            />
-            <Text style={styles.brandText}>
-              Fit<Text style={styles.brandMatch}>Match</Text>
-            </Text>
-          </View>
-
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.title}>Criar Conta</Text>
-            <Text style={styles.subtitle}>Cadastre-se para começar</Text>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nome</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Seu nome completo"
-                value={nome}
-                onChangeText={setNome}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Digite seu email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Senha</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="No mínimo 6 caracteres"
-                secureTextEntry
-                value={senha}
-                onChangeText={setSenha}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={fazerCadastro}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
->>>>>>> Stashed changes
               ) : (
                 <Text style={styles.buttonText}>Cadastrar</Text>
               )}
             </TouchableOpacity>
 
-<<<<<<< Updated upstream
             <TouchableOpacity onPress={() => router.replace("/login")}>
               <Text style={styles.footerText}>
                 Ja tem uma conta? <Text style={styles.link}>Entrar</Text>
@@ -323,33 +186,15 @@ export default function SignUpScreen() {
       </KeyboardAvoidingView>
     );
   }
-=======
-            <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Já tem uma conta? </Text>
-              <TouchableOpacity onPress={() => router.push("/")}>
-                <Text style={styles.linkText}>Entrar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
->>>>>>> Stashed changes
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  headerTop: {
-    width: "100%",
+  container: { flex: 1, backgroundColor: "#F8F8F8" },
+  header: {
+    backgroundColor: "#F29111",
     height: 100,
-    backgroundColor: "#F38D10",
-    justifyContent: "flex-end",
+    justifyContent: "center",
     alignItems: "center",
-<<<<<<< Updated upstream
     paddingTop: 40,
     zIndex: 10,
   },
@@ -359,106 +204,41 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: "center",
     flexGrow: 1,
-=======
-    paddingBottom: 15,
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 30,
-    paddingBottom: 40,
-    marginTop: 20,
-    width: "100%", // Garante que o conteúdo não passe da tela
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 25,
->>>>>>> Stashed changes
   },
   logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 10,
+    width: 320,
+    height: 280,
+    marginBottom: 5,
     resizeMode: "contain",
   },
-  brandText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  brandMatch: {
-    color: "#F38D10",
-  },
-  welcomeContainer: {
-    alignItems: "center",
-    marginBottom: 25,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#888",
-    marginTop: 5,
-  },
-  form: {
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  inputGroup: { width: "100%" },
+  label: { color: "#888", marginBottom: 5, fontSize: 14, marginLeft: 5 },
+  inputContainer: {
     width: "100%",
-  },
-  inputGroup: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 14,
-    color: "#AAA",
-    marginBottom: 5,
-    marginLeft: 5,
-  },
-  input: {
-    width: "100%",
-    height: 50,
+    height: 55,
     borderWidth: 1,
     borderColor: "#DDD",
-    borderRadius: 10,
+    borderRadius: 12,
+    marginBottom: 15,
     paddingHorizontal: 15,
-    color: "#000",
+    backgroundColor: "#FFF",
+    justifyContent: "center",
   },
+  inputError: { borderColor: "#E74C3C" },
+  input: { fontSize: 16 },
+  errorText: { color: "#E74C3C", marginBottom: 15, fontWeight: "500" },
   button: {
-    backgroundColor: "#F38D10",
+    backgroundColor: "#F29111",
+    width: "100%",
     height: 55,
     borderRadius: 30,
-    alignItems: "center",
     justifyContent: "center",
-    marginTop: 20,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  footerContainer: {
-    flexDirection: "row",
-    marginTop: 25,
     alignItems: "center",
-    justifyContent: "center",
+    marginTop: 10,
+    elevation: 4,
   },
-  footerText: {
-    color: "#888",
-    fontSize: 14,
-  },
-  linkText: {
-    color: "#007BFF",
-    fontSize: 14,
-    fontWeight: "bold",
-    textDecorationLine: "underline",
-  },
+  buttonText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  footerText: { marginTop: 25, color: "#999" },
+  link: { color: "#4A90E2", fontWeight: "bold" },
 });
