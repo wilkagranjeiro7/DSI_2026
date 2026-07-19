@@ -12,8 +12,24 @@ import {
 import NovaRefeicao from "./NovaRefeicao";
 
 // ==========================================
-// 1. INTERFACES
+// 1. INTERFACES (As regras do TypeScript para o CRUD)
 // ==========================================
+export interface Alimento {
+  id: string;
+  nome: string;
+  porcao: string;
+  calorias: number;
+  emoji?: string;
+  iconColor?: string;
+}
+
+export interface Refeicao {
+  id: string;
+  tipo: string;
+  nome: string;
+  itens: Alimento[];
+}
+
 interface HeaderProps {
   title: string;
   iconName: React.ComponentProps<typeof Feather>["name"];
@@ -27,26 +43,18 @@ interface FoodCardProps {
   emoji?: string;
   iconColor?: string;
   isLast?: boolean;
-}
-
-interface FoodItem {
-  id: string;
-  name: string;
-  portion: string;
-  calories: number;
-  emoji?: string;
-  iconColor?: string;
+  onPress?: () => void; // Adicionado para poder clicar na comida e editar
 }
 
 interface MealSectionProps {
   title: string;
   totalCalories: number;
-  foods: FoodItem[];
-  onAddPress: () => void;
+  foods: Alimento[];
+  onEditPress: () => void; // Adicionado para abrir a edição
 }
 
 // ==========================================
-// 2. COMPONENTES
+// 2. COMPONENTES VISUAIS
 // ==========================================
 
 function Header({ title, iconName, onBackPress }: HeaderProps) {
@@ -70,9 +78,14 @@ function FoodCard({
   emoji = "🍲",
   iconColor = "#FFF0E6",
   isLast = false,
+  onPress,
 }: FoodCardProps) {
   return (
-    <View style={[styles.foodCard, isLast && styles.lastCard]}>
+    <TouchableOpacity
+      style={[styles.foodCard, isLast && styles.lastCard]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.foodInfoContainer}>
         <View style={[styles.iconPlaceholder, { backgroundColor: iconColor }]}>
           <Text style={styles.emojiIcon}>{emoji}</Text>
@@ -84,7 +97,7 @@ function FoodCard({
         </View>
       </View>
       <Text style={styles.calories}>{calories} kcal</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -92,7 +105,7 @@ function MealSection({
   title,
   totalCalories,
   foods,
-  onAddPress,
+  onEditPress,
 }: MealSectionProps) {
   return (
     <View style={styles.mealContainer}>
@@ -100,30 +113,38 @@ function MealSection({
         <Text style={styles.mealTitle}>{title}</Text>
         <View style={styles.mealHeaderRight}>
           <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
-          <TouchableOpacity style={styles.addMealButton} onPress={onAddPress}>
+          <TouchableOpacity style={styles.addMealButton} onPress={onEditPress}>
+            {/* O botão '+' agora serve para editar/adicionar itens nesta refeição */}
             <Feather name="plus" size={18} color="#000" />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.cardWrapper}>
-        {foods.map((food, index) => (
-          <FoodCard
-            key={food.id}
-            name={food.name}
-            portion={food.portion}
-            calories={food.calories}
-            emoji={food.emoji}
-            iconColor={food.iconColor}
-            isLast={index === foods.length - 1}
-          />
-        ))}
+        {foods.length > 0 ? (
+          foods.map((food, index) => (
+            <FoodCard
+              key={food.id}
+              name={food.nome}
+              portion={food.porcao}
+              calories={food.calorias}
+              emoji={food.emoji}
+              iconColor={food.iconColor}
+              isLast={index === foods.length - 1}
+              onPress={onEditPress} // Clicar na comida também abre a edição!
+            />
+          ))
+        ) : (
+          <Text style={{ padding: 10, color: "#9CA3AF", fontStyle: "italic" }}>
+            Nenhum alimento nesta refeição.
+          </Text>
+        )}
       </View>
     </View>
   );
 }
 
-// BARRA COM 5 BOTÕES (Idêntica à imagem)
+// BARRA COM 5 BOTÕES
 function BottomTabs() {
   return (
     <View style={styles.tabContainer}>
@@ -156,106 +177,108 @@ function BottomTabs() {
 }
 
 // ==========================================
-// 3. TELA PRINCIPAL
+// 3. TELA PRINCIPAL (Onde o CRUD funciona)
 // ==========================================
 export default function App() {
-  const [telaAtual, setTelaAtual] = useState("PlanoAlimentar");
+  const [telaAtual, setTelaAtual] = useState<"PlanoAlimentar" | "NovaRefeicao">(
+    "PlanoAlimentar",
+  );
 
-  const cafeDaManha = [
-    {
-      id: "1",
-      name: "Aveia com banana",
-      portion: "1 porção",
-      calories: 280,
-      emoji: "🥣",
-      iconColor: "#FFF0F0",
-    },
-    {
-      id: "2",
-      name: "Ovo mexido",
-      portion: "2 unidades",
-      calories: 140,
-      emoji: "🥚",
-      iconColor: "#FFF9E6",
-    },
-  ];
+  // Esse estado guarda a refeição que você clicou para editar
+  const [refeicaoEditando, setRefeicaoEditando] = useState<Refeicao | null>(
+    null,
+  );
 
-  const almoco = [
+  // O nosso "Banco de Dados" temporário. Já deixei uma refeição de exemplo!
+  const [refeicoes, setRefeicoes] = useState<Refeicao[]>([
     {
-      id: "3",
-      name: "Frango grelhado",
-      portion: "150 g",
-      calories: 250,
-      emoji: "🍗",
-      iconColor: "#FFF0E6",
+      id: "ref_1",
+      tipo: "Café da manhã",
+      nome: "Café reforçado",
+      itens: [
+        {
+          id: "1",
+          nome: "Aveia com banana",
+          porcao: "1 porção",
+          calorias: 280,
+          emoji: "🥣",
+          iconColor: "#FFF0F0",
+        },
+        {
+          id: "2",
+          nome: "Ovo mexido",
+          porcao: "2 unidades",
+          calorias: 140,
+          emoji: "🥚",
+          iconColor: "#FFF9E6",
+        },
+      ],
     },
-    {
-      id: "4",
-      name: "Arroz integral",
-      portion: "1 xícara",
-      calories: 200,
-      emoji: "🍚",
-      iconColor: "#FFF4E6",
-    },
-    {
-      id: "5",
-      name: "Feijão",
-      portion: "1 concha",
-      calories: 130,
-      emoji: "🧆",
-      iconColor: "#FFF4E6",
-    },
-    {
-      id: "6",
-      name: "Salada verde",
-      portion: "1 prato",
-      calories: 100,
-      emoji: "🥬",
-      iconColor: "#E6F4EA",
-    },
-  ];
+  ]);
 
-  const lancheDaTarde = [
-    {
-      id: "7",
-      name: "Iogurte natural",
-      portion: "1 pote",
-      calories: 120,
-      emoji: "🥛",
-      iconColor: "#F3E8FF",
-    },
-    {
-      id: "8",
-      name: "Castanhas",
-      portion: "15 g",
-      calories: 90,
-      emoji: "🥜",
-      iconColor: "#FFF0E6",
-    },
-  ];
+  // ==========================================
+  // FUNÇÕES DO CRUD
+  // ==========================================
 
-  const jantar = [
-    {
-      id: "9",
-      name: "Salmão grelhado",
-      portion: "150 g",
-      calories: 250,
-      emoji: "🍣",
-      iconColor: "#FFF0E6",
-    },
-    {
-      id: "10",
-      name: "Batata doce",
-      portion: "100 g",
-      calories: 150,
-      emoji: "🍠",
-      iconColor: "#FFF0E6",
-    },
-  ];
+  // CREATE (Criar) e UPDATE (Atualizar)
+  const salvarRefeicao = (novaRefeicao: Refeicao) => {
+    const existe = refeicoes.find((r) => r.id === novaRefeicao.id);
 
+    if (existe) {
+      // Se já existir, atualiza a lista
+      setRefeicoes(
+        refeicoes.map((r) => (r.id === novaRefeicao.id ? novaRefeicao : r)),
+      );
+    } else {
+      // Se não existir, adiciona uma nova
+      setRefeicoes([...refeicoes, novaRefeicao]);
+    }
+
+    setTelaAtual("PlanoAlimentar");
+    setRefeicaoEditando(null);
+  };
+
+  // DELETE (Apagar)
+  const deletarRefeicao = (idRefeicao: string) => {
+    setRefeicoes(refeicoes.filter((r) => r.id !== idRefeicao));
+    setTelaAtual("PlanoAlimentar");
+    setRefeicaoEditando(null);
+  };
+
+  // ABRIR TELAS
+  const abrirNovaRefeicao = () => {
+    setRefeicaoEditando(null); // Limpa para criar do zero
+    setTelaAtual("NovaRefeicao");
+  };
+
+  const abrirEditarRefeicao = (refeicao: Refeicao) => {
+    setRefeicaoEditando(refeicao); // Manda os dados da refeição clicada
+    setTelaAtual("NovaRefeicao");
+  };
+
+  // ==========================================
+  // CONTROLE DE NAVEGAÇÃO
+  // ==========================================
   if (telaAtual === "NovaRefeicao") {
-    return <NovaRefeicao onVoltar={() => setTelaAtual("PlanoAlimentar")} />;
+    return (
+      <NovaRefeicao
+        refeicaoEditando={refeicaoEditando}
+        onSalvar={salvarRefeicao}
+        onDeletar={deletarRefeicao}
+        onVoltar={() => {
+          setTelaAtual("PlanoAlimentar");
+          setRefeicaoEditando(null);
+        }}
+      />
+    );
   }
+
+  // ==========================================
+  // CÁLCULOS DO RESUMO DO DIA
+  // ==========================================
+  const totalCaloriasDia = refeicoes.reduce((total, ref) => {
+    return total + ref.itens.reduce((sum, item) => sum + item.calorias, 0);
+  }, 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -265,18 +288,21 @@ export default function App() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.dateText}>Hoje, 15 de abril</Text>
 
-        {/* Caixa de Resumo com as Barras de Progresso */}
+        {/* Caixa de Resumo Dinâmica */}
         <View style={styles.summaryBox}>
           <Text style={styles.summaryTitle}>Resumo do dia</Text>
           <View style={styles.macrosContainer}>
             <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>1.850</Text>
+              <Text style={styles.macroValue}>{totalCaloriasDia}</Text>
               <Text style={styles.macroLabel}>Calorias</Text>
               <View style={styles.progressBarTrack}>
                 <View
                   style={[
                     styles.progressBarFill,
-                    { width: "92%", backgroundColor: "#FF8C00" },
+                    {
+                      width: `${Math.min((totalCaloriasDia / 2000) * 100, 100)}%`,
+                      backgroundColor: "#FF8C00",
+                    },
                   ]}
                 />
               </View>
@@ -333,33 +359,34 @@ export default function App() {
           </View>
         </View>
 
-        <MealSection
-          title="Café da manhã"
-          totalCalories={420}
-          foods={cafeDaManha}
-          onAddPress={() => setTelaAtual("NovaRefeicao")}
-        />
-        <MealSection
-          title="Almoço"
-          totalCalories={680}
-          foods={almoco}
-          onAddPress={() => setTelaAtual("NovaRefeicao")}
-        />
-        <MealSection
-          title="Lanche da tarde"
-          totalCalories={210}
-          foods={lancheDaTarde}
-          onAddPress={() => setTelaAtual("NovaRefeicao")}
-        />
+        {/* LISTAGEM DAS REFEIÇÕES (Vindas do "Banco de Dados") */}
+        {refeicoes.map((refeicao) => {
+          const caloriasDaRefeicao = refeicao.itens.reduce(
+            (total, item) => total + item.calorias,
+            0,
+          );
 
-        {/* Mantive o jantar e o botão no final para você poder testar a tela toda, 
-            mesmo que na imagem corte no lanche da tarde */}
-        <MealSection
-          title="Jantar"
-          totalCalories={400}
-          foods={jantar}
-          onAddPress={() => setTelaAtual("NovaRefeicao")}
-        />
+          return (
+            <MealSection
+              key={refeicao.id}
+              title={`${refeicao.tipo} ${refeicao.nome ? `- ${refeicao.nome}` : ""}`}
+              totalCalories={caloriasDaRefeicao}
+              foods={refeicao.itens}
+              onEditPress={() => abrirEditarRefeicao(refeicao)} // Clicar aqui abre a edição!
+            />
+          );
+        })}
+
+        {/* BOTÃO PARA CRIAR UMA NOVA DO ZERO */}
+        <TouchableOpacity
+          style={styles.botaoAdicionarRefeicao}
+          onPress={abrirNovaRefeicao}
+        >
+          <Feather name="plus-circle" size={24} color="#FFF" />
+          <Text style={styles.botaoAdicionarRefeicaoTexto}>
+            Criar Nova Refeição
+          </Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -512,5 +539,20 @@ const styles = StyleSheet.create({
     color: "#FF8C00",
     marginTop: 4,
     fontWeight: "600",
+  },
+  botaoAdicionarRefeicao: {
+    backgroundColor: "#FF8C00",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  botaoAdicionarRefeicaoTexto: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 10,
   },
 });

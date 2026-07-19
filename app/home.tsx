@@ -271,9 +271,26 @@ export default class HomeScreen extends Component<object, HomeState> {
                   <Feather name="target" size={54} color={HomeColors.primary} />
                 }
               />
+
+              {/* --- NOVO CARD AQUI --- */}
+              <SmallCard
+                title="Plano Alimentar"
+                subtitle="Gerencie suas refeições"
+                onPress={() => router.push("/plano-alimentar")}
+                icon={
+                  <MaterialCommunityIcons
+                    name="silverware-fork-knife"
+                    size={54}
+                    color={HomeColors.primary}
+                  />
+                }
+              />
+              {/* ---------------------- */}
+
               <SmallCard
                 title="Seu progresso"
                 subtitle="Veja sua evolucao"
+                onPress={() => router.push("/progresso")}
                 icon={
                   <Ionicons
                     name="nutrition-outline"
@@ -307,8 +324,6 @@ export default class HomeScreen extends Component<object, HomeState> {
                   />
                 }
               />
-
-
             </View>
           </ScrollView>
 
