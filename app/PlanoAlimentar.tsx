@@ -9,20 +9,22 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import NovaRefeicao from "./NovaRefeicao";
 
 // ==========================================
-// 1. INTERFACES (As regras do TypeScript)
+// 1. INTERFACES
 // ==========================================
 interface HeaderProps {
   title: string;
   iconName: React.ComponentProps<typeof Feather>["name"];
-  onBackPress?: () => void; // Adicionamos a opção de clicar no botão de voltar
+  onBackPress?: () => void;
 }
 
 interface FoodCardProps {
   name: string;
   portion: string;
   calories: number;
+  emoji?: string;
   iconColor?: string;
   isLast?: boolean;
 }
@@ -32,6 +34,7 @@ interface FoodItem {
   name: string;
   portion: string;
   calories: number;
+  emoji?: string;
   iconColor?: string;
 }
 
@@ -39,11 +42,11 @@ interface MealSectionProps {
   title: string;
   totalCalories: number;
   foods: FoodItem[];
-  onAddPress: () => void; // Ação para quando clicar no "+" da refeição
+  onAddPress: () => void;
 }
 
 // ==========================================
-// 2. COMPONENTES (As nossas peças de Lego)
+// 2. COMPONENTES
 // ==========================================
 
 function Header({ title, iconName, onBackPress }: HeaderProps) {
@@ -64,19 +67,15 @@ function FoodCard({
   name,
   portion,
   calories,
-  iconColor = "#FFE4CC",
+  emoji = "🍲",
+  iconColor = "#FFF0E6",
   isLast = false,
 }: FoodCardProps) {
   return (
     <View style={[styles.foodCard, isLast && styles.lastCard]}>
       <View style={styles.foodInfoContainer}>
-        {/* Quadradinho com o ícone de prato/talheres no centro */}
         <View style={[styles.iconPlaceholder, { backgroundColor: iconColor }]}>
-          <MaterialCommunityIcons
-            name="silverware-fork-knife"
-            size={18}
-            color="#FF8C00"
-          />
+          <Text style={styles.emojiIcon}>{emoji}</Text>
         </View>
 
         <View>
@@ -101,8 +100,8 @@ function MealSection({
         <Text style={styles.mealTitle}>{title}</Text>
         <View style={styles.mealHeaderRight}>
           <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
-          <TouchableOpacity onPress={onAddPress}>
-            <Feather name="plus" size={20} color="#000" />
+          <TouchableOpacity style={styles.addMealButton} onPress={onAddPress}>
+            <Feather name="plus" size={18} color="#000" />
           </TouchableOpacity>
         </View>
       </View>
@@ -114,6 +113,7 @@ function MealSection({
             name={food.name}
             portion={food.portion}
             calories={food.calories}
+            emoji={food.emoji}
             iconColor={food.iconColor}
             isLast={index === foods.length - 1}
           />
@@ -123,27 +123,32 @@ function MealSection({
   );
 }
 
+// BARRA COM 5 BOTÕES (Idêntica à imagem)
 function BottomTabs() {
   return (
     <View style={styles.tabContainer}>
-      <TouchableOpacity style={styles.tab}>
-        <Feather name="home" size={24} color="#A0A0A0" />
-        <Text style={styles.tabText}>Início</Text>
+      <TouchableOpacity style={styles.tabActive}>
+        <Feather name="home" size={20} color="#FF8C00" />
+        <Text style={styles.tabTextActive}>Início</Text>
       </TouchableOpacity>
+
       <TouchableOpacity style={styles.tab}>
-        <Feather name="activity" size={24} color="#A0A0A0" />
+        <MaterialCommunityIcons name="dumbbell" size={20} color="#A0A0A0" />
         <Text style={styles.tabText}>Treinos</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.tabActive}>
-        <Feather name="shopping-bag" size={24} color="#FF8C00" />
-        <Text style={styles.tabTextActive}>Refeições</Text>
-      </TouchableOpacity>
+
       <TouchableOpacity style={styles.tab}>
-        <Feather name="check-circle" size={24} color="#A0A0A0" />
+        <Feather name="plus-circle" size={20} color="#A0A0A0" />
         <Text style={styles.tabText}>Metas</Text>
       </TouchableOpacity>
+
       <TouchableOpacity style={styles.tab}>
-        <Feather name="user" size={24} color="#A0A0A0" />
+        <Feather name="map-pin" size={20} color="#A0A0A0" />
+        <Text style={styles.tabText}>Mapa</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.tab}>
+        <Feather name="user" size={20} color="#A0A0A0" />
         <Text style={styles.tabText}>Perfil</Text>
       </TouchableOpacity>
     </View>
@@ -151,27 +156,27 @@ function BottomTabs() {
 }
 
 // ==========================================
-// 3. TELA PRINCIPAL (Onde tudo se junta)
+// 3. TELA PRINCIPAL
 // ==========================================
 export default function App() {
-  // === O NOSSO INTERRUPTOR DE TELAS ===
   const [telaAtual, setTelaAtual] = useState("PlanoAlimentar");
 
-  // Dados das comidas (Mock)
   const cafeDaManha = [
     {
       id: "1",
       name: "Aveia com banana",
       portion: "1 porção",
       calories: 280,
-      iconColor: "#FFF0E6",
+      emoji: "🥣",
+      iconColor: "#FFF0F0",
     },
     {
       id: "2",
       name: "Ovo mexido",
       portion: "2 unidades",
       calories: 140,
-      iconColor: "#FFF0E6",
+      emoji: "🥚",
+      iconColor: "#FFF9E6",
     },
   ];
 
@@ -181,6 +186,7 @@ export default function App() {
       name: "Frango grelhado",
       portion: "150 g",
       calories: 250,
+      emoji: "🍗",
       iconColor: "#FFF0E6",
     },
     {
@@ -188,20 +194,23 @@ export default function App() {
       name: "Arroz integral",
       portion: "1 xícara",
       calories: 200,
-      iconColor: "#FFF0E6",
+      emoji: "🍚",
+      iconColor: "#FFF4E6",
     },
     {
       id: "5",
       name: "Feijão",
       portion: "1 concha",
       calories: 130,
-      iconColor: "#FFF0E6",
+      emoji: "🧆",
+      iconColor: "#FFF4E6",
     },
     {
       id: "6",
       name: "Salada verde",
       portion: "1 prato",
       calories: 100,
+      emoji: "🥬",
       iconColor: "#E6F4EA",
     },
   ];
@@ -212,6 +221,7 @@ export default function App() {
       name: "Iogurte natural",
       portion: "1 pote",
       calories: 120,
+      emoji: "🥛",
       iconColor: "#F3E8FF",
     },
     {
@@ -219,6 +229,7 @@ export default function App() {
       name: "Castanhas",
       portion: "15 g",
       calories: 90,
+      emoji: "🥜",
       iconColor: "#FFF0E6",
     },
   ];
@@ -229,6 +240,7 @@ export default function App() {
       name: "Salmão grelhado",
       portion: "150 g",
       calories: 250,
+      emoji: "🍣",
       iconColor: "#FFF0E6",
     },
     {
@@ -236,81 +248,91 @@ export default function App() {
       name: "Batata doce",
       portion: "100 g",
       calories: 150,
+      emoji: "🍠",
       iconColor: "#FFF0E6",
     },
   ];
 
-  // ==========================================
-  // SE A TELA FOR "NOVA REFEIÇÃO", MOSTRA ISSO:
-  // ==========================================
   if (telaAtual === "NovaRefeicao") {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
-        <Header
-          title="Nova refeição"
-          iconName="trash-2"
-          onBackPress={() => setTelaAtual("PlanoAlimentar")} // O botão de voltar muda o interruptor!
-        />
-        <View style={styles.novaRefeicaoContainer}>
-          <Text style={styles.novaRefeicaoTexto}>
-            A tela de Nova Refeição será construída aqui!
-          </Text>
-          <TouchableOpacity
-            style={styles.botaoLaranja}
-            onPress={() => setTelaAtual("PlanoAlimentar")}
-          >
-            <Text style={styles.botaoLaranjaTexto}>
-              Voltar para Plano Alimentar
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
+    return <NovaRefeicao onVoltar={() => setTelaAtual("PlanoAlimentar")} />;
   }
 
-  // ==========================================
-  // SE A TELA FOR "PLANO ALIMENTAR", MOSTRA ISSO:
-  // ==========================================
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
-
       <Header title="Plano Alimentar" iconName="calendar" />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.dateText}>Hoje, 18 de junho</Text>
+        <Text style={styles.dateText}>Hoje, 15 de abril</Text>
 
+        {/* Caixa de Resumo com as Barras de Progresso */}
         <View style={styles.summaryBox}>
           <Text style={styles.summaryTitle}>Resumo do dia</Text>
           <View style={styles.macrosContainer}>
             <View style={styles.macroItem}>
               <Text style={styles.macroValue}>1.850</Text>
               <Text style={styles.macroLabel}>Calorias</Text>
-              <Text style={styles.macroMeta}>meta 2.000</Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: "92%", backgroundColor: "#FF8C00" },
+                  ]}
+                />
+              </View>
+              <Text style={styles.macroMeta}>Meta 2.000</Text>
             </View>
+
             <View style={styles.divider} />
+
             <View style={styles.macroItem}>
               <Text style={styles.macroValue}>180g</Text>
               <Text style={styles.macroLabel}>Proteínas</Text>
-              <Text style={styles.macroMeta}>meta 150g</Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: "100%", backgroundColor: "#FACC15" },
+                  ]}
+                />
+              </View>
+              <Text style={styles.macroMeta}>Meta 150g</Text>
             </View>
+
             <View style={styles.divider} />
+
             <View style={styles.macroItem}>
               <Text style={styles.macroValue}>210g</Text>
               <Text style={styles.macroLabel}>Carboidratos</Text>
-              <Text style={styles.macroMeta}>meta 220g</Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: "95%", backgroundColor: "#FACC15" },
+                  ]}
+                />
+              </View>
+              <Text style={styles.macroMeta}>Meta 220g</Text>
             </View>
+
             <View style={styles.divider} />
+
             <View style={styles.macroItem}>
               <Text style={styles.macroValue}>60g</Text>
               <Text style={styles.macroLabel}>Gorduras</Text>
-              <Text style={styles.macroMeta}>meta 65g</Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: "90%", backgroundColor: "#9CA3AF" },
+                  ]}
+                />
+              </View>
+              <Text style={styles.macroMeta}>Meta 65g</Text>
             </View>
           </View>
         </View>
 
-        {/* Repare que eu adicionei o "onAddPress" em cada seção para abrir a tela nova */}
         <MealSection
           title="Café da manhã"
           totalCalories={420}
@@ -329,23 +351,15 @@ export default function App() {
           foods={lancheDaTarde}
           onAddPress={() => setTelaAtual("NovaRefeicao")}
         />
+
+        {/* Mantive o jantar e o botão no final para você poder testar a tela toda, 
+            mesmo que na imagem corte no lanche da tarde */}
         <MealSection
           title="Jantar"
           totalCalories={400}
           foods={jantar}
           onAddPress={() => setTelaAtual("NovaRefeicao")}
         />
-
-        {/* BOTÃO GRANDE PARA ADICIONAR REFEIÇÃO NO FINAL DA TELA */}
-        <TouchableOpacity
-          style={styles.botaoAdicionarRefeicao}
-          onPress={() => setTelaAtual("NovaRefeicao")}
-        >
-          <Feather name="plus-circle" size={24} color="#FFF" />
-          <Text style={styles.botaoAdicionarRefeicaoTexto}>
-            Criar Nova Refeição
-          </Text>
-        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -356,13 +370,10 @@ export default function App() {
 }
 
 // ==========================================
-// 4. ESTILOS (O CSS da tela)
+// 4. ESTILOS
 // ==========================================
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-  },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
     backgroundColor: "#FF8C00",
     flexDirection: "row",
@@ -371,18 +382,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  content: {
-    padding: 20,
-  },
+  headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
+  content: { padding: 20 },
   dateText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: "#111827",
     marginBottom: 20,
   },
   summaryBox: {
@@ -391,66 +396,69 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 25,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#F3F4F6",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   summaryTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     marginBottom: 15,
-    color: "#333",
+    color: "#111827",
   },
   macrosContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  macroItem: {
-    alignItems: "center",
-    flex: 1,
+  macroItem: { alignItems: "center", flex: 1 },
+  macroValue: { fontSize: 16, fontWeight: "bold", color: "#111827" },
+  macroLabel: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  progressBarTrack: {
+    width: "80%",
+    height: 4,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 2,
+    marginTop: 8,
+    marginBottom: 6,
+    position: "relative",
   },
-  macroValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+  progressBarFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: 4,
+    borderRadius: 2,
   },
-  macroLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 2,
-  },
-  macroMeta: {
-    fontSize: 10,
-    color: "#A0A0A0",
-    marginTop: 2,
-  },
+  macroMeta: { fontSize: 10, color: "#111827", fontWeight: "600" },
   divider: {
     width: 1,
-    height: 30,
-    backgroundColor: "#E0E0E0",
+    height: 40,
+    backgroundColor: "#F3F4F6",
+    marginHorizontal: 2,
   },
-  mealContainer: {
-    marginBottom: 20,
-  },
+  mealContainer: { marginBottom: 20 },
   mealHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
     paddingHorizontal: 4,
   },
-  mealTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  mealHeaderRight: {
-    flexDirection: "row",
+  mealTitle: { fontSize: 18, fontWeight: "bold", color: "#111827" },
+  mealHeaderRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  mealTotal: { fontSize: 14, color: "#111827", fontWeight: "600" },
+  addMealButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
     alignItems: "center",
-    gap: 8,
-  },
-  mealTotal: {
-    fontSize: 14,
-    color: "#666",
+    justifyContent: "center",
   },
   cardWrapper: {
     backgroundColor: "#FFF",
@@ -458,110 +466,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#F3F4F6",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   foodCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#F3F4F6",
   },
-  lastCard: {
-    borderBottomWidth: 0,
-  },
-  foodInfoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  lastCard: { borderBottomWidth: 0 },
+  foodInfoContainer: { flexDirection: "row", alignItems: "center" },
   iconPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    marginRight: 14,
     justifyContent: "center",
     alignItems: "center",
   },
-  foodName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
-  portion: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-  calories: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
+  emojiIcon: { fontSize: 24 },
+  foodName: { fontSize: 15, fontWeight: "700", color: "#111827" },
+  portion: { fontSize: 13, color: "#6B7280", marginTop: 2 },
+  calories: { fontSize: 14, fontWeight: "600", color: "#111827" },
   tabContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: "#FFF",
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
+    borderTopColor: "#F3F4F6",
   },
-  tab: {
-    alignItems: "center",
-  },
-  tabActive: {
-    alignItems: "center",
-  },
-  tabText: {
-    fontSize: 10,
-    color: "#A0A0A0",
-    marginTop: 4,
-  },
+  tab: { alignItems: "center" },
+  tabActive: { alignItems: "center" },
+  tabText: { fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: "500" },
   tabTextActive: {
     fontSize: 10,
     color: "#FF8C00",
     marginTop: 4,
-    fontWeight: "500",
-  },
-
-  /* --- NOVOS ESTILOS PARA OS BOTÕES DE NOVA REFEIÇÃO --- */
-  botaoAdicionarRefeicao: {
-    backgroundColor: "#FF8C00",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  botaoAdicionarRefeicaoTexto: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
-  novaRefeicaoContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  novaRefeicaoTexto: {
-    fontSize: 18,
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  botaoLaranja: {
-    backgroundColor: "#FF8C00",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  botaoLaranjaTexto: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 16,
+    fontWeight: "600",
   },
 });
