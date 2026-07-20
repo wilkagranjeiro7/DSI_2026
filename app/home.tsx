@@ -272,11 +272,10 @@ export default class HomeScreen extends Component<object, HomeState> {
                 }
               />
 
-              {/* --- NOVO CARD AQUI --- */}
               <SmallCard
                 title="Plano Alimentar"
                 subtitle="Gerencie suas refeições"
-                onPress={() => router.push("/plano-alimentar")}
+                onPress={() => router.push("/PlanoAlimentar")}
                 icon={
                   <MaterialCommunityIcons
                     name="silverware-fork-knife"
@@ -285,8 +284,8 @@ export default class HomeScreen extends Component<object, HomeState> {
                   />
                 }
               />
-              {/* ---------------------- */}
 
+              {/* MÁGICA DA NAVEGAÇÃO ACONTECENDO AQUI: */}
               <SmallCard
                 title="Seu progresso"
                 subtitle="Veja sua evolucao"
@@ -299,6 +298,8 @@ export default class HomeScreen extends Component<object, HomeState> {
                   />
                 }
               />
+              {/* -------------------------------------- */}
+
               <SmallCard
                 title="Dicas e bem-estar"
                 subtitle="Cuide da sua saúde"
