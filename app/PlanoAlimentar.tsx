@@ -1,6 +1,6 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React from "react";
 import {
     Alert,
     SafeAreaView,
@@ -15,22 +15,75 @@ import { PlanoAlimentarService } from "../src/services/PlanoAlimentarService";
 import NovaRefeicao from "./NovaRefeicao";
 
 // ==========================================
-// 1. INTERFACES (As regras do TypeScript para o CRUD)
+// 1. CLASSES DE MODELO
 // ==========================================
-export interface Alimento {
+
+export class Alimento {
   id: string;
   nome: string;
   porcao: string;
   calorias: number;
   emoji?: string;
   iconColor?: string;
+
+  constructor(
+    id: string,
+    nome: string,
+    porcao: string,
+    calorias: number,
+    emoji?: string,
+    iconColor?: string,
+  ) {
+    this.id = id;
+    this.nome = nome;
+    this.porcao = porcao;
+    this.calorias = calorias;
+    this.emoji = emoji;
+    this.iconColor = iconColor;
+  }
+
+  // Fábrica pra criar um Alimento a partir de um objeto puro (ex: vindo do Firebase)
+  static fromPlain(obj: any): Alimento {
+    return new Alimento(
+      obj.id,
+      obj.nome,
+      obj.porcao,
+      obj.calorias,
+      obj.emoji,
+      obj.iconColor,
+    );
+  }
 }
 
-export interface Refeicao {
+export class Refeicao {
   id: string;
   tipo: string;
   nome: string;
   itens: Alimento[];
+
+  constructor(id: string, tipo: string, nome: string, itens: Alimento[]) {
+    this.id = id;
+    this.tipo = tipo;
+    this.nome = nome;
+    this.itens = itens;
+  }
+
+  static fromPlain(obj: any): Refeicao {
+    const itens = (obj.itens ?? []).map((item: any) =>
+      Alimento.fromPlain(item),
+    );
+    return new Refeicao(obj.id, obj.tipo, obj.nome, itens);
+  }
+
+  // Soma as calorias de todos os alimentos dessa refeição
+  totalCalorias(): number {
+    return this.itens.reduce((total, item) => total + item.calorias, 0);
+  }
+
+  // Título formatado pra exibir no card (ex: "Café da manhã - Pré-treino")
+  tituloExibicao(): string {
+    return `${this.tipo} ${this.nome ? `- ${this.nome}` : ""}`;
+  }
 }
 
 interface HeaderProps {
@@ -56,336 +109,369 @@ interface MealSectionProps {
   onEditPress: () => void;
 }
 
-// ==========================================
-// 2. COMPONENTES VISUAIS
-// ==========================================
-
-function Header({ title, iconName, onBackPress }: HeaderProps) {
-  return (
-    <View style={styles.header}>
-      <TouchableOpacity onPress={onBackPress}>
-        <Feather name="arrow-left" size={24} color="#FFF" />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>{title}</Text>
-      <TouchableOpacity>
-        <Feather name={iconName} size={24} color="#FFF" />
-      </TouchableOpacity>
-    </View>
-  );
+interface PlanoAlimentarState {
+  telaAtual: "PlanoAlimentar" | "NovaRefeicao";
+  refeicaoEditando: Refeicao | null;
+  refeicoes: Refeicao[];
 }
 
-function FoodCard({
-  name,
-  portion,
-  calories,
-  emoji = "🍲",
-  iconColor = "#FFF0E6",
-  isLast = false,
-  onPress,
-}: FoodCardProps) {
-  return (
-    <TouchableOpacity
-      style={[styles.foodCard, isLast && styles.lastCard]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.foodInfoContainer}>
-        <View style={[styles.iconPlaceholder, { backgroundColor: iconColor }]}>
-          <Text style={styles.emojiIcon}>{emoji}</Text>
-        </View>
+// ==========================================
+// 2. COMPONENTES VISUAIS (agora como classes)
+// ==========================================
 
-        <View>
-          <Text style={styles.foodName}>{name}</Text>
-          <Text style={styles.portion}>{portion}</Text>
-        </View>
+class Header extends React.Component<HeaderProps> {
+  render() {
+    const { title, iconName, onBackPress } = this.props;
+    return (
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBackPress}>
+          <Feather name="arrow-left" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{title}</Text>
+        <TouchableOpacity>
+          <Feather name={iconName} size={24} color="#FFF" />
+        </TouchableOpacity>
       </View>
-      <Text style={styles.calories}>{calories} kcal</Text>
-    </TouchableOpacity>
-  );
+    );
+  }
 }
 
-function MealSection({
-  title,
-  totalCalories,
-  foods,
-  onEditPress,
-}: MealSectionProps) {
-  return (
-    <View style={styles.mealContainer}>
-      <View style={styles.mealHeader}>
-        <Text style={styles.mealTitle}>{title}</Text>
-        <View style={styles.mealHeaderRight}>
-          <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
-          <TouchableOpacity style={styles.addMealButton} onPress={onEditPress}>
-            <Feather name="plus" size={18} color="#000" />
-          </TouchableOpacity>
-        </View>
-      </View>
+class FoodCard extends React.Component<FoodCardProps> {
+  static defaultProps = {
+    emoji: "🍲",
+    iconColor: "#FFF0E6",
+    isLast: false,
+  };
 
-      <View style={styles.cardWrapper}>
-        {foods.length > 0 ? (
-          foods.map((food, index) => (
-            <FoodCard
-              key={food.id}
-              name={food.nome}
-              portion={food.porcao}
-              calories={food.calorias}
-              emoji={food.emoji}
-              iconColor={food.iconColor}
-              isLast={index === foods.length - 1}
+  render() {
+    const { name, portion, calories, emoji, iconColor, isLast, onPress } =
+      this.props;
+
+    return (
+      <TouchableOpacity
+        style={[styles.foodCard, isLast && styles.lastCard]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.foodInfoContainer}>
+          <View
+            style={[styles.iconPlaceholder, { backgroundColor: iconColor }]}
+          >
+            <Text style={styles.emojiIcon}>{emoji}</Text>
+          </View>
+
+          <View>
+            <Text style={styles.foodName}>{name}</Text>
+            <Text style={styles.portion}>{portion}</Text>
+          </View>
+        </View>
+        <Text style={styles.calories}>{calories} kcal</Text>
+      </TouchableOpacity>
+    );
+  }
+}
+
+class MealSection extends React.Component<MealSectionProps> {
+  render() {
+    const { title, totalCalories, foods, onEditPress } = this.props;
+
+    return (
+      <View style={styles.mealContainer}>
+        <View style={styles.mealHeader}>
+          <Text style={styles.mealTitle}>{title}</Text>
+          <View style={styles.mealHeaderRight}>
+            <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
+            <TouchableOpacity
+              style={styles.addMealButton}
               onPress={onEditPress}
-            />
-          ))
-        ) : (
-          <Text style={{ padding: 10, color: "#9CA3AF", fontStyle: "italic" }}>
-            Nenhum alimento nesta refeição.
-          </Text>
-        )}
+            >
+              <Feather name="plus" size={18} color="#000" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.cardWrapper}>
+          {foods.length > 0 ? (
+            foods.map((food, index) => (
+              <FoodCard
+                key={food.id}
+                name={food.nome}
+                portion={food.porcao}
+                calories={food.calorias}
+                emoji={food.emoji}
+                iconColor={food.iconColor}
+                isLast={index === foods.length - 1}
+                onPress={onEditPress}
+              />
+            ))
+          ) : (
+            <Text
+              style={{ padding: 10, color: "#9CA3AF", fontStyle: "italic" }}
+            >
+              Nenhum alimento nesta refeição.
+            </Text>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  }
 }
 
 // BARRA COM 5 BOTÕES
-function BottomTabs() {
-  return (
-    <View style={styles.tabContainer}>
-      <TouchableOpacity style={styles.tabActive}>
-        <Feather name="home" size={20} color="#FF8C00" />
-        <Text style={styles.tabTextActive}>Início</Text>
-      </TouchableOpacity>
+class BottomTabs extends React.Component {
+  render() {
+    return (
+      <View style={styles.tabContainer}>
+        <TouchableOpacity style={styles.tabActive}>
+          <Feather name="home" size={20} color="#FF8C00" />
+          <Text style={styles.tabTextActive}>Início</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
-        <MaterialCommunityIcons name="dumbbell" size={20} color="#A0A0A0" />
-        <Text style={styles.tabText}>Treinos</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <MaterialCommunityIcons name="dumbbell" size={20} color="#A0A0A0" />
+          <Text style={styles.tabText}>Treinos</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
-        <Feather name="plus-circle" size={20} color="#A0A0A0" />
-        <Text style={styles.tabText}>Metas</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <Feather name="plus-circle" size={20} color="#A0A0A0" />
+          <Text style={styles.tabText}>Metas</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
-        <Feather name="map-pin" size={20} color="#A0A0A0" />
-        <Text style={styles.tabText}>Mapa</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <Feather name="map-pin" size={20} color="#A0A0A0" />
+          <Text style={styles.tabText}>Mapa</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
-        <Feather name="user" size={20} color="#A0A0A0" />
-        <Text style={styles.tabText}>Perfil</Text>
-      </TouchableOpacity>
-    </View>
-  );
+        <TouchableOpacity style={styles.tab}>
+          <Feather name="user" size={20} color="#A0A0A0" />
+          <Text style={styles.tabText}>Perfil</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 }
 
 // ==========================================
-// 3. TELA PRINCIPAL (Onde o CRUD funciona)
+// 3. TELA PRINCIPAL (classe com o CRUD)
 // ==========================================
-export default function PlanoAlimentar() {
-  const [telaAtual, setTelaAtual] = useState<"PlanoAlimentar" | "NovaRefeicao">(
-    "PlanoAlimentar",
-  );
+class PlanoAlimentarScreen extends React.Component<
+  { onFocusRequest?: (callback: () => void) => void },
+  PlanoAlimentarState
+> {
+  constructor(props: { onFocusRequest?: (callback: () => void) => void }) {
+    super(props);
+    this.state = {
+      telaAtual: "PlanoAlimentar",
+      refeicaoEditando: null,
+      refeicoes: [], // Agora começa vazio: os dados vêm do Firebase
+    };
 
-  // Esse estado guarda a refeição que você clicou para editar
-  const [refeicaoEditando, setRefeicaoEditando] = useState<Refeicao | null>(
-    null,
-  );
-
-  // Agora começa vazio: os dados vêm do Firebase
-  const [refeicoes, setRefeicoes] = useState<Refeicao[]>([]);
+    // Registra este método pra ser chamado sempre que a tela ganhar foco
+    if (this.props.onFocusRequest) {
+      this.props.onFocusRequest(() => this.carregarRefeicoes());
+    }
+  }
 
   // ==========================================
   // BUSCAR DADOS DO FIREBASE
   // ==========================================
-  const carregarRefeicoes = useCallback(async () => {
+  carregarRefeicoes = async (): Promise<void> => {
     try {
       const dados = await PlanoAlimentarService.buscarRefeicoes();
-      setRefeicoes(dados);
+      this.setState({ refeicoes: dados });
     } catch (error) {
       console.error("Erro ao carregar plano alimentar:", error);
     }
-  }, []);
-
-  // Recarrega quando a rota ganha foco (navegação real do expo-router)
-  useFocusEffect(
-    useCallback(() => {
-      carregarRefeicoes();
-    }, [carregarRefeicoes]),
-  );
+  };
 
   // ==========================================
   // FUNÇÕES DO CRUD
   // ==========================================
 
-  // DELETE (Apagar) - agora conectado ao Firebase de verdade
-  const deletarRefeicao = async (idRefeicao: string) => {
+  // DELETE (Apagar) - conectado ao Firebase de verdade
+  deletarRefeicao = async (idRefeicao: string): Promise<void> => {
     try {
       await PlanoAlimentarService.deletarRefeicao(idRefeicao);
-      setRefeicoes(refeicoes.filter((r) => r.id !== idRefeicao));
+      this.setState((prevState) => ({
+        refeicoes: prevState.refeicoes.filter((r) => r.id !== idRefeicao),
+      }));
       Alert.alert("Excluído", "A refeição foi removida do seu plano.");
     } catch (error) {
       console.error("Erro ao deletar refeição:", error);
       Alert.alert("Erro", "Não foi possível excluir a refeição.");
     } finally {
-      setTelaAtual("PlanoAlimentar");
-      setRefeicaoEditando(null);
+      this.setState({ telaAtual: "PlanoAlimentar", refeicaoEditando: null });
     }
   };
 
   // ABRIR TELAS
-  const abrirNovaRefeicao = () => {
-    setRefeicaoEditando(null);
-    setTelaAtual("NovaRefeicao");
+  abrirNovaRefeicao = (): void => {
+    this.setState({ refeicaoEditando: null, telaAtual: "NovaRefeicao" });
   };
 
-  const abrirEditarRefeicao = (refeicao: Refeicao) => {
-    setRefeicaoEditando(refeicao);
-    setTelaAtual("NovaRefeicao");
+  abrirEditarRefeicao = (refeicao: Refeicao): void => {
+    this.setState({ refeicaoEditando: refeicao, telaAtual: "NovaRefeicao" });
   };
 
   // Chamado quando o usuário volta da tela NovaRefeicao (com ou sem salvar)
-  const voltarParaLista = () => {
-    setTelaAtual("PlanoAlimentar");
-    setRefeicaoEditando(null);
-    carregarRefeicoes(); // recarrega a lista pra trazer o que foi salvo no Firebase
+  voltarParaLista = (): void => {
+    this.setState({ telaAtual: "PlanoAlimentar", refeicaoEditando: null });
+    this.carregarRefeicoes(); // recarrega a lista pra trazer o que foi salvo no Firebase
   };
-
-  // ==========================================
-  // CONTROLE DE NAVEGAÇÃO
-  // ==========================================
-  if (telaAtual === "NovaRefeicao") {
-    return (
-      <NovaRefeicao
-        refeicaoEditando={refeicaoEditando}
-        onSalvar={voltarParaLista}
-        onDeletar={deletarRefeicao}
-        onVoltar={voltarParaLista}
-      />
-    );
-  }
 
   // ==========================================
   // CÁLCULOS DO RESUMO DO DIA
   // ==========================================
-  const totalCaloriasDia = refeicoes.reduce((total, ref) => {
-    return total + ref.itens.reduce((sum, item) => sum + item.calorias, 0);
-  }, 0);
+  private totalCaloriasDia(): number {
+    return this.state.refeicoes.reduce(
+      (total, ref) => total + ref.totalCalorias(),
+      0,
+    );
+  }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
-      <Header title="Plano Alimentar" iconName="calendar" />
+  render() {
+    const { telaAtual, refeicaoEditando, refeicoes } = this.state;
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.dateText}>Hoje, 15 de abril</Text>
+    // ==========================================
+    // CONTROLE DE NAVEGAÇÃO
+    // ==========================================
+    if (telaAtual === "NovaRefeicao") {
+      return (
+        <NovaRefeicao
+          // 👇 Adicione o "as any" aqui
+          refeicaoEditando={refeicaoEditando as any}
+          onSalvar={this.voltarParaLista}
+          onDeletar={this.deletarRefeicao}
+          onVoltar={this.voltarParaLista}
+        />
+      );
+    }
+    const totalCaloriasDia = this.totalCaloriasDia();
 
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryTitle}>Resumo do dia</Text>
-          <View style={styles.macrosContainer}>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{totalCaloriasDia}</Text>
-              <Text style={styles.macroLabel}>Calorias</Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${Math.min((totalCaloriasDia / 2000) * 100, 100)}%`,
-                      backgroundColor: "#FF8C00",
-                    },
-                  ]}
-                />
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
+        <Header title="Plano Alimentar" iconName="calendar" />
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.dateText}>Hoje, 15 de abril</Text>
+
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryTitle}>Resumo do dia</Text>
+            <View style={styles.macrosContainer}>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{totalCaloriasDia}</Text>
+                <Text style={styles.macroLabel}>Calorias</Text>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${Math.min((totalCaloriasDia / 2000) * 100, 100)}%`,
+                        backgroundColor: "#FF8C00",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroMeta}>Meta 2.000</Text>
               </View>
-              <Text style={styles.macroMeta}>Meta 2.000</Text>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>180g</Text>
-              <Text style={styles.macroLabel}>Proteínas</Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: "100%", backgroundColor: "#FACC15" },
-                  ]}
-                />
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>180g</Text>
+                <Text style={styles.macroLabel}>Proteínas</Text>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: "100%", backgroundColor: "#FACC15" },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroMeta}>Meta 150g</Text>
               </View>
-              <Text style={styles.macroMeta}>Meta 150g</Text>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>210g</Text>
-              <Text style={styles.macroLabel}>Carboidratos</Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: "95%", backgroundColor: "#FACC15" },
-                  ]}
-                />
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>210g</Text>
+                <Text style={styles.macroLabel}>Carboidratos</Text>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: "95%", backgroundColor: "#FACC15" },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroMeta}>Meta 220g</Text>
               </View>
-              <Text style={styles.macroMeta}>Meta 220g</Text>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>60g</Text>
-              <Text style={styles.macroLabel}>Gorduras</Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: "90%", backgroundColor: "#9CA3AF" },
-                  ]}
-                />
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>60g</Text>
+                <Text style={styles.macroLabel}>Gorduras</Text>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: "90%", backgroundColor: "#9CA3AF" },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroMeta}>Meta 65g</Text>
               </View>
-              <Text style={styles.macroMeta}>Meta 65g</Text>
             </View>
           </View>
-        </View>
 
-        {refeicoes.map((refeicao) => {
-          const caloriasDaRefeicao = refeicao.itens.reduce(
-            (total, item) => total + item.calorias,
-            0,
-          );
-
-          return (
+          {refeicoes.map((refeicao) => (
             <MealSection
               key={refeicao.id}
-              title={`${refeicao.tipo} ${refeicao.nome ? `- ${refeicao.nome}` : ""}`}
-              totalCalories={caloriasDaRefeicao}
+              title={refeicao.tituloExibicao()}
+              totalCalories={refeicao.totalCalorias()}
               foods={refeicao.itens}
-              onEditPress={() => abrirEditarRefeicao(refeicao)}
+              onEditPress={() => this.abrirEditarRefeicao(refeicao)}
             />
-          );
-        })}
+          ))}
 
-        <TouchableOpacity
-          style={styles.botaoAdicionarRefeicao}
-          onPress={abrirNovaRefeicao}
-        >
-          <Feather name="plus-circle" size={24} color="#FFF" />
-          <Text style={styles.botaoAdicionarRefeicaoTexto}>
-            Criar Nova Refeição
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.botaoAdicionarRefeicao}
+            onPress={this.abrirNovaRefeicao}
+          >
+            <Feather name="plus-circle" size={24} color="#FFF" />
+            <Text style={styles.botaoAdicionarRefeicaoTexto}>
+              Criar Nova Refeição
+            </Text>
+          </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          <View style={{ height: 40 }} />
+        </ScrollView>
 
-      <BottomTabs />
-    </SafeAreaView>
-  );
+        <BottomTabs />
+      </SafeAreaView>
+    );
+  }
 }
 
 // ==========================================
-// 4. ESTILOS
+// 4. WRAPPER FUNCIONAL
+// ==========================================
+export default function PlanoAlimentar() {
+  const screenRef = React.useRef<PlanoAlimentarScreen>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      screenRef.current?.carregarRefeicoes();
+    }, []),
+  );
+
+  return <PlanoAlimentarScreen ref={screenRef} />;
+}
+
+// ==========================================
+// 5. ESTILOS
 // ==========================================
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F9FAFB" },

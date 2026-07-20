@@ -276,7 +276,7 @@ export default class HomeScreen extends Component<object, HomeState> {
               <SmallCard
                 title="Plano Alimentar"
                 subtitle="Gerencie suas refeições"
-                onPress={() => router.push("/plano-alimentar")}
+                onPress={() => router.push("/PlanoAlimentar")}
                 icon={
                   <MaterialCommunityIcons
                     name="silverware-fork-knife"
