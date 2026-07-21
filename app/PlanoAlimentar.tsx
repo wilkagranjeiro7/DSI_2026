@@ -1,21 +1,23 @@
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import type { Router } from "expo-router";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
     Alert,
+    Modal,
     SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 import { PlanoAlimentarService } from "../src/services/PlanoAlimentarService";
-import NovaRefeicao from "./NovaRefeicao";
 
 // ==========================================
-// 1. CLASSES DE MODELO
+// 1. CLASSES DE MODELO (antes eram interfaces)
 // ==========================================
 
 export class Alimento {
@@ -24,7 +26,6 @@ export class Alimento {
   porcao: string;
   calorias: number;
   emoji?: string;
-  iconColor?: string;
 
   constructor(
     id: string,
@@ -32,24 +33,23 @@ export class Alimento {
     porcao: string,
     calorias: number,
     emoji?: string,
-    iconColor?: string,
   ) {
     this.id = id;
     this.nome = nome;
     this.porcao = porcao;
     this.calorias = calorias;
     this.emoji = emoji;
-    this.iconColor = iconColor;
   }
 
-  static fromPlain(obj: any): Alimento {
+  // Cria uma cópia deste alimento com um novo id (usado ao adicionar à refeição,
+  // pra não duplicar o id do item "catálogo")
+  comNovoId(): Alimento {
     return new Alimento(
-      obj.id,
-      obj.nome,
-      obj.porcao,
-      obj.calorias,
-      obj.emoji,
-      obj.iconColor,
+      Math.random().toString(),
+      this.nome,
+      this.porcao,
+      this.calorias,
+      this.emoji,
     );
   }
 }
@@ -66,161 +66,80 @@ export class Refeicao {
     this.nome = nome;
     this.itens = itens;
   }
-
-  static fromPlain(obj: any): Refeicao {
-    const itens = (obj.itens ?? []).map((item: any) =>
-      Alimento.fromPlain(item),
-    );
-    return new Refeicao(obj.id, obj.tipo, obj.nome, itens);
-  }
-
-  totalCalorias(): number {
-    return this.itens.reduce((total, item) => total + item.calorias, 0);
-  }
-
-  tituloExibicao(): string {
-    return `${this.tipo} ${this.nome ? `- ${this.nome}` : ""}`;
-  }
 }
 
-interface HeaderProps {
-  title: string;
-  iconName: React.ComponentProps<typeof Feather>["name"];
-  onBackPress?: () => void;
+interface NovaRefeicaoProps {
+  refeicaoEditando?: Refeicao | null;
+  onSalvar: (refeicao: Refeicao) => void;
+  onDeletar?: (idRefeicao: string) => void;
+  onVoltar: () => void;
+  router: Router; // necessário caso a tela seja acessada direto por rota
 }
 
-interface FoodCardProps {
-  name: string;
-  portion: string;
-  calories: number;
+interface ItemComidaProps {
+  nome: string;
+  porcao: string;
+  calorias: number;
   emoji?: string;
-  iconColor?: string;
+  acao: "adicionar" | "remover";
+  onPressAcao: () => void;
   isLast?: boolean;
-  onPress?: () => void;
 }
 
-interface MealSectionProps {
-  title: string;
-  totalCalories: number;
-  foods: Alimento[];
-  onEditPress: () => void;
-  onFinalizar: () => void; // Nova propriedade
+interface NovaRefeicaoState {
+  tipoSelecionado: string;
+  nomeRefeicao: string;
+  itensAdicionados: Alimento[];
+  salvando: boolean; // evita clique duplo no botão salvar
+  modalVisivel: boolean;
+  customNome: string;
+  customPorcao: string;
+  customCalorias: string;
 }
 
-interface PlanoAlimentarState {
-  telaAtual: "PlanoAlimentar" | "NovaRefeicao";
-  refeicaoEditando: Refeicao | null;
-  refeicoes: Refeicao[];
-}
-
-// ==========================================
-// 2. COMPONENTES VISUAIS
-// ==========================================
-
-class Header extends React.Component<HeaderProps> {
-  render() {
-    const { title, iconName, onBackPress } = this.props;
-    return (
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBackPress}>
-          <Feather name="arrow-left" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <TouchableOpacity>
-          <Feather name={iconName} size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-}
-
-class FoodCard extends React.Component<FoodCardProps> {
+// COMPONENTE PARA REUTILIZAR AS LINHAS DE COMIDA
+class ItemComida extends React.Component<ItemComidaProps> {
   static defaultProps = {
-    emoji: "🍲",
-    iconColor: "#FFF0E6",
     isLast: false,
   };
 
   render() {
-    const { name, portion, calories, emoji, iconColor, isLast, onPress } =
+    const { nome, porcao, calorias, emoji, acao, onPressAcao, isLast } =
       this.props;
 
     return (
-      <TouchableOpacity
-        style={[styles.foodCard, isLast && styles.lastCard]}
-        onPress={onPress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.foodInfoContainer}>
-          <View
-            style={[styles.iconPlaceholder, { backgroundColor: iconColor }]}
-          >
-            <Text style={styles.emojiIcon}>{emoji}</Text>
-          </View>
-
+      <View style={[styles.foodItem, isLast && { borderBottomWidth: 0 }]}>
+        <View style={styles.foodItemLeft}>
+          {emoji && (
+            <View style={styles.emojiBox}>
+              <Text style={{ fontSize: 20 }}>{emoji}</Text>
+            </View>
+          )}
           <View>
-            <Text style={styles.foodName}>{name}</Text>
-            <Text style={styles.portion}>{portion}</Text>
+            <Text style={styles.foodItemName}>{nome}</Text>
+            <Text style={styles.foodItemPortion}>{porcao}</Text>
           </View>
         </View>
-        <Text style={styles.calories}>{calories} kcal</Text>
-      </TouchableOpacity>
-    );
-  }
-}
-
-class MealSection extends React.Component<MealSectionProps> {
-  render() {
-    const { title, totalCalories, foods, onEditPress, onFinalizar } =
-      this.props;
-
-    return (
-      <View style={styles.mealContainer}>
-        <View style={styles.mealHeader}>
-          <Text style={styles.mealTitle}>{title}</Text>
-          <View style={styles.mealHeaderRight}>
-            <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
-
-            {/* Botão Finalizar */}
+        <View style={styles.foodItemRight}>
+          {acao === "remover" && calorias ? (
+            <View style={{ marginRight: 12 }}>
+              <Text style={styles.foodItemCalories}>{calorias} kcal</Text>
+            </View>
+          ) : null}
+          {acao === "adicionar" ? (
             <TouchableOpacity
-              style={[
-                styles.addMealButton,
-                { borderColor: "#22c55e", marginRight: 8 },
-              ]}
-              onPress={onFinalizar}
+              style={styles.actionButtonAdd}
+              onPress={onPressAcao}
             >
-              <Feather name="check" size={18} color="#22c55e" />
+              <Feather name="plus" size={18} color="#FF8C00" />
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.addMealButton}
-              onPress={onEditPress}
-            >
-              <Feather name="plus" size={18} color="#000" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.cardWrapper}>
-          {foods.length > 0 ? (
-            foods.map((food, index) => (
-              <FoodCard
-                key={food.id}
-                name={food.nome}
-                portion={food.porcao}
-                calories={food.calorias}
-                emoji={food.emoji}
-                iconColor={food.iconColor}
-                isLast={index === foods.length - 1}
-                onPress={onEditPress}
-              />
-            ))
           ) : (
-            <Text
-              style={{ padding: 10, color: "#9CA3AF", fontStyle: "italic" }}
+            <TouchableOpacity
+              style={styles.actionButtonRemove}
+              onPress={onPressAcao}
             >
-              Nenhum alimento nesta refeição.
-            </Text>
+              <Feather name="minus" size={18} color="#DC2626" />
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -228,196 +147,430 @@ class MealSection extends React.Component<MealSectionProps> {
   }
 }
 
-class BottomTabs extends React.Component {
-  render() {
-    return (
-      <View style={styles.tabContainer}>
-        <TouchableOpacity style={styles.tabActive}>
-          <Feather name="home" size={20} color="#FF8C00" />
-          <Text style={styles.tabTextActive}>Início</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <MaterialCommunityIcons name="dumbbell" size={20} color="#A0A0A0" />
-          <Text style={styles.tabText}>Treinos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Feather name="plus-circle" size={20} color="#A0A0A0" />
-          <Text style={styles.tabText}>Metas</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Feather name="map-pin" size={20} color="#A0A0A0" />
-          <Text style={styles.tabText}>Mapa</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Feather name="user" size={20} color="#A0A0A0" />
-          <Text style={styles.tabText}>Perfil</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-}
-
 // ==========================================
-// 3. TELA PRINCIPAL
+// 2. TELA PRINCIPAL (classe com o CRUD)
 // ==========================================
-class PlanoAlimentarScreen extends React.Component<
-  { onFocusRequest?: (callback: () => void) => void },
-  PlanoAlimentarState
+class NovaRefeicaoScreen extends React.Component<
+  NovaRefeicaoProps,
+  NovaRefeicaoState
 > {
-  constructor(props: { onFocusRequest?: (callback: () => void) => void }) {
+  // Catálogo de alimentos disponíveis (não muda, então não precisa ir pro state)
+  private readonly alimentosDisponiveis: Alimento[] = [
+    new Alimento("1", "Frango grelhado", "165 kcal / 100g", 165, "🍗"),
+    new Alimento("2", "Arroz integral", "111 kcal / 100g", 111, "🍚"),
+    new Alimento("3", "Feijão carioca", "76 kcal / 100g", 76, "🧆"),
+    new Alimento("4", "Batata doce cozida", "86 kcal / 100g", 86, "🍠"),
+    new Alimento("5", "Ovo cozido", "78 kcal / unidade", 78, "🥚"),
+    new Alimento("6", "Abacate", "160 kcal / 100g", 160, "🥑"),
+  ];
+
+  private readonly isEditando: boolean;
+
+  constructor(props: NovaRefeicaoProps) {
     super(props);
+
+    this.isEditando = !!props.refeicaoEditando;
+
     this.state = {
-      telaAtual: "PlanoAlimentar",
-      refeicaoEditando: null,
-      refeicoes: [],
+      tipoSelecionado: props.refeicaoEditando?.tipo || "Café da manhã",
+      nomeRefeicao: props.refeicaoEditando?.nome || "",
+      itensAdicionados: props.refeicaoEditando?.itens || [],
+      salvando: false,
+      modalVisivel: false,
+      customNome: "",
+      customPorcao: "",
+      customCalorias: "",
+    };
+  }
+
+  // ==========================================
+  // 3. LÓGICA DO CRUD DE ALIMENTOS
+  // ==========================================
+  adicionarAlimento = (alimento: Alimento): void => {
+    const novoItem = alimento.comNovoId();
+    this.setState((prevState) => ({
+      itensAdicionados: [...prevState.itensAdicionados, novoItem],
+    }));
+  };
+
+  removerAlimento = (idParaRemover: string): void => {
+    this.setState((prevState) => ({
+      itensAdicionados: prevState.itensAdicionados.filter(
+        (item) => item.id !== idParaRemover,
+      ),
+    }));
+  };
+
+  // Salva o alimento criado pelo usuário na hora
+  salvarAlimentoCustomizado = (): void => {
+    const { customNome, customPorcao, customCalorias, itensAdicionados } =
+      this.state;
+
+    if (!customNome.trim() || !customCalorias.trim()) {
+      Alert.alert(
+        "Aviso",
+        "Preencha pelo menos o nome e as calorias do alimento.",
+      );
+      return;
+    }
+
+    const novoAlimento = new Alimento(
+      Math.random().toString(),
+      customNome,
+      customPorcao || "1 porção",
+      parseInt(customCalorias) || 0,
+      "🍽️",
+    );
+
+    this.setState({
+      itensAdicionados: [...itensAdicionados, novoAlimento],
+      customNome: "",
+      customPorcao: "",
+      customCalorias: "",
+      modalVisivel: false,
+    });
+  };
+
+  // ==========================================
+  // SALVAR NO FIREBASE (cria OU atualiza, sem duplicar)
+  // ==========================================
+  handleSalvar = async (): Promise<void> => {
+    const { nomeRefeicao, tipoSelecionado, itensAdicionados } = this.state;
+    const { refeicaoEditando, onSalvar } = this.props;
+
+    if (!nomeRefeicao.trim()) {
+      Alert.alert("Aviso", "Por favor, dê um nome para a sua refeição.");
+      return;
+    }
+
+    const dadosRefeicao = {
+      tipo: tipoSelecionado,
+      nome: nomeRefeicao,
+      itens: itensAdicionados,
     };
 
-    if (this.props.onFocusRequest) {
-      this.props.onFocusRequest(() => this.carregarRefeicoes());
-    }
-  }
-
-  carregarRefeicoes = async (): Promise<void> => {
+    this.setState({ salvando: true });
     try {
-      const dados = await PlanoAlimentarService.buscarRefeicoes();
-      this.setState({ refeicoes: dados });
-    } catch (error) {
-      console.error("Erro ao carregar plano alimentar:", error);
-    }
-  };
+      if (this.isEditando && refeicaoEditando) {
+        // Atualiza a refeição existente no Firestore (não cria uma nova)
+        await PlanoAlimentarService.atualizarRefeicao(
+          refeicaoEditando.id,
+          dadosRefeicao as any,
+        );
+        Alert.alert("Sucesso", "Alterações salvas!");
+      } else {
+        // Cria uma refeição nova no Firestore
+        await PlanoAlimentarService.salvarRefeicao(dadosRefeicao as any);
+        Alert.alert("Sucesso", "Refeição salva no seu plano!");
+      }
 
-  // Nova função para finalizar refeição
-  finalizarRefeicao = async (refeicao: Refeicao) => {
-    try {
-      await PlanoAlimentarService.finalizarRefeicao(refeicao.id);
-      Alert.alert("Parabéns!", "Refeição concluída!");
-      router.push("/progresso");
+      // Avisa o componente pai (caso ele precise atualizar algo)
+      onSalvar(
+        new Refeicao(
+          this.isEditando ? refeicaoEditando!.id : Math.random().toString(),
+          dadosRefeicao.tipo,
+          dadosRefeicao.nome,
+          dadosRefeicao.itens,
+        ),
+      );
     } catch (error) {
-      console.error("Erro ao finalizar:", error);
-      Alert.alert("Erro", "Não foi possível finalizar a refeição.");
-    }
-  };
-
-  deletarRefeicao = async (idRefeicao: string): Promise<void> => {
-    try {
-      await PlanoAlimentarService.deletarRefeicao(idRefeicao);
-      this.setState((prevState) => ({
-        refeicoes: prevState.refeicoes.filter((r) => r.id !== idRefeicao),
-      }));
-      Alert.alert("Excluído", "A refeição foi removida do seu plano.");
-    } catch (error) {
-      console.error("Erro ao deletar refeição:", error);
-      Alert.alert("Erro", "Não foi possível excluir a refeição.");
+      console.error("Erro ao salvar refeição:", error);
+      Alert.alert("Erro", "Não foi possível salvar a refeição.");
     } finally {
-      this.setState({ telaAtual: "PlanoAlimentar", refeicaoEditando: null });
+      this.setState({ salvando: false });
     }
   };
 
-  abrirNovaRefeicao = (): void => {
-    this.setState({ refeicaoEditando: null, telaAtual: "NovaRefeicao" });
+  handleDeletar = (): void => {
+    const { onDeletar, refeicaoEditando } = this.props;
+
+    Alert.alert(
+      "Excluir Refeição",
+      "Tem certeza que deseja apagar essa refeição inteira?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () =>
+            onDeletar && refeicaoEditando && onDeletar(refeicaoEditando.id),
+        },
+      ],
+    );
   };
 
-  abrirEditarRefeicao = (refeicao: Refeicao): void => {
-    this.setState({ refeicaoEditando: refeicao, telaAtual: "NovaRefeicao" });
-  };
-
-  voltarParaLista = (): void => {
-    this.setState({ telaAtual: "PlanoAlimentar", refeicaoEditando: null });
-    this.carregarRefeicoes();
-  };
-
-  private totalCaloriasDia(): number {
-    return this.state.refeicoes.reduce(
-      (total, ref) => total + ref.totalCalorias(),
+  private totalCalorias(): number {
+    return this.state.itensAdicionados.reduce(
+      (total, item) => total + item.calorias,
       0,
     );
   }
 
+  // ==========================================
+  // 4. VISUAL
+  // ==========================================
   render() {
-    const { telaAtual, refeicaoEditando, refeicoes } = this.state;
+    const { onVoltar, router } = this.props;
+    const {
+      tipoSelecionado,
+      nomeRefeicao,
+      itensAdicionados,
+      salvando,
+      modalVisivel,
+      customNome,
+      customPorcao,
+      customCalorias,
+    } = this.state;
 
-    if (telaAtual === "NovaRefeicao") {
-      return (
-        <NovaRefeicao
-          refeicaoEditando={refeicaoEditando as any}
-          onSalvar={this.voltarParaLista}
-          onDeletar={this.deletarRefeicao}
-          onVoltar={this.voltarParaLista}
-        />
-      );
-    }
-    const totalCaloriasDia = this.totalCaloriasDia();
+    const totalCalorias = this.totalCalorias();
 
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
-        <Header title="Plano Alimentar" iconName="calendar" />
+
+        {/* CABEÇALHO */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => (onVoltar ? onVoltar() : router.back())}
+          >
+            <Feather name="arrow-left" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {this.isEditando ? "Editar refeição" : "Nova refeição"}
+          </Text>
+          {this.isEditando ? (
+            <TouchableOpacity onPress={this.handleDeletar}>
+              <Feather name="trash-2" size={24} color="#FFF" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 24 }} />
+          )}
+        </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.dateText}>Hoje, 15 de abril</Text>
-
-          <View style={styles.summaryBox}>
-            <Text style={styles.summaryTitle}>Resumo do dia</Text>
-            <View style={styles.macrosContainer}>
-              <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{totalCaloriasDia}</Text>
-                <Text style={styles.macroLabel}>Calorias</Text>
-                <View style={styles.progressBarTrack}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${Math.min((totalCaloriasDia / 2000) * 100, 100)}%`,
-                        backgroundColor: "#FF8C00",
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.macroMeta}>Meta 2.000</Text>
-              </View>
-              {/* ... (Demais itens de macro omitidos para concisão, manter o original) ... */}
-            </View>
+          <Text style={styles.sectionTitle}>Tipo de refeição</Text>
+          <View style={styles.tipoContainer}>
+            {["Café da manhã", "Almoço", "Lanche", "Jantar"].map((tipo) => (
+              <TouchableOpacity
+                key={tipo}
+                style={[
+                  styles.tipoButton,
+                  tipoSelecionado === tipo && styles.tipoButtonActive,
+                ]}
+                onPress={() => this.setState({ tipoSelecionado: tipo })}
+              >
+                <Text
+                  style={[
+                    styles.tipoButtonText,
+                    tipoSelecionado === tipo && styles.tipoButtonTextActive,
+                  ]}
+                >
+                  {tipo}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {refeicoes.map((refeicao) => (
-            <MealSection
-              key={refeicao.id}
-              title={refeicao.tituloExibicao()}
-              totalCalories={refeicao.totalCalorias()}
-              foods={refeicao.itens}
-              onEditPress={() => this.abrirEditarRefeicao(refeicao)}
-              onFinalizar={() => this.finalizarRefeicao(refeicao)}
+          <Text style={styles.sectionTitle}>Nome da refeição</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Minha refeição ou Jantar leve"
+            placeholderTextColor="#9CA3AF"
+            value={nomeRefeicao}
+            onChangeText={(texto) => this.setState({ nomeRefeicao: texto })}
+          />
+
+          {this.isEditando && (
+            <>
+              <Text style={styles.sectionTitle}>Itens da refeição</Text>
+              {itensAdicionados.length > 0 ? (
+                <View style={styles.cardList}>
+                  {itensAdicionados.map((item, index) => (
+                    <ItemComida
+                      key={item.id}
+                      nome={item.nome}
+                      porcao={`${item.calorias} kcal`}
+                      calorias={item.calorias}
+                      emoji={item.emoji}
+                      acao="remover"
+                      onPressAcao={() => this.removerAlimento(item.id)}
+                      isLast={index === itensAdicionados.length - 1}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>Nenhum item adicionado.</Text>
+              )}
+            </>
+          )}
+
+          <Text style={styles.sectionTitle}>Adicionar alimentos</Text>
+          <View style={styles.searchContainer}>
+            <Feather
+              name="search"
+              size={20}
+              color="#9CA3AF"
+              style={styles.searchIcon}
             />
-          ))}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar alimento"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.cardList}>
+            {this.alimentosDisponiveis.map((item, index) => (
+              <ItemComida
+                key={item.id}
+                nome={item.nome}
+                porcao={item.porcao}
+                calorias={item.calorias}
+                emoji={item.emoji}
+                acao="adicionar"
+                onPressAcao={() => this.adicionarAlimento(item)}
+                isLast={index === this.alimentosDisponiveis.length - 1}
+              />
+            ))}
+          </View>
 
           <TouchableOpacity
-            style={styles.botaoAdicionarRefeicao}
-            onPress={this.abrirNovaRefeicao}
+            style={styles.btnCriarPersonalizado}
+            onPress={() => this.setState({ modalVisivel: true })}
           >
-            <Feather name="plus-circle" size={24} color="#FFF" />
-            <Text style={styles.botaoAdicionarRefeicaoTexto}>
-              Criar Nova Refeição
+            <Feather name="plus" size={16} color="#FF8C00" />
+            <Text style={styles.btnCriarPersonalizadoTexto}>
+              Criar alimento personalizado
             </Text>
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          {!this.isEditando && (
+            <>
+              <Text style={styles.sectionTitle}>Itens adicionados</Text>
+              {itensAdicionados.length > 0 ? (
+                <View style={styles.cardList}>
+                  {itensAdicionados.map((item, index) => (
+                    <ItemComida
+                      key={item.id}
+                      nome={item.nome}
+                      porcao={`${item.calorias} kcal`}
+                      calorias={item.calorias}
+                      emoji={item.emoji}
+                      acao="remover"
+                      onPressAcao={() => this.removerAlimento(item.id)}
+                      isLast={index === itensAdicionados.length - 1}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>
+                  Adicione alimentos clicando no "+" acima.
+                </Text>
+              )}
+            </>
+          )}
+
+          <View style={{ height: 120 }} />
         </ScrollView>
-        <BottomTabs />
+
+        {/* RODAPÉ FIXO */}
+        <View style={styles.footer}>
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabel}>Total da refeição</Text>
+            <Text style={styles.totalValue}>{totalCalorias} kcal</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.saveButton, salvando && { opacity: 0.6 }]}
+            onPress={this.handleSalvar}
+            disabled={salvando}
+          >
+            <Text style={styles.saveButtonText}>
+              {salvando
+                ? "Salvando..."
+                : this.isEditando
+                  ? "Salvar alterações"
+                  : "Salvar refeição"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* MODAL DE ALIMENTO PERSONALIZADO */}
+        <Modal visible={modalVisivel} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Novo Alimento</Text>
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Nome (ex: Pão Caseiro)"
+                placeholderTextColor="#9CA3AF"
+                value={customNome}
+                onChangeText={(texto) => this.setState({ customNome: texto })}
+              />
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Porção (ex: 1 fatia)"
+                placeholderTextColor="#9CA3AF"
+                value={customPorcao}
+                onChangeText={(texto) => this.setState({ customPorcao: texto })}
+              />
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Calorias (ex: 120)"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={customCalorias}
+                onChangeText={(texto) =>
+                  this.setState({ customCalorias: texto })
+                }
+              />
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalBtnCancel}
+                  onPress={() => this.setState({ modalVisivel: false })}
+                >
+                  <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalBtnSave}
+                  onPress={this.salvarAlimentoCustomizado}
+                >
+                  <Text style={styles.modalBtnSaveText}>Adicionar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     );
   }
 }
 
-export default function PlanoAlimentar() {
-  const screenRef = React.useRef<PlanoAlimentarScreen>(null);
-  useFocusEffect(
-    React.useCallback(() => {
-      screenRef.current?.carregarRefeicoes();
-    }, []),
-  );
-  return <PlanoAlimentarScreen ref={screenRef} />;
+// ==========================================
+// 3. WRAPPER FUNCIONAL (só pra ligar o useRouter do expo-router à classe)
+// ==========================================
+// "useRouter" é um hook e só pode ser chamado dentro de uma função componente.
+// Esse wrapper existe unicamente pra obter o router e passá-lo como prop pra
+// classe — nenhuma regra de negócio vive aqui.
+interface WrapperProps {
+  refeicaoEditando?: Refeicao | null;
+  onSalvar: (refeicao: Refeicao) => void;
+  onDeletar?: (idRefeicao: string) => void;
+  onVoltar: () => void;
 }
 
+export default function NovaRefeicao(props: WrapperProps) {
+  const router = useRouter();
+  return <NovaRefeicaoScreen {...props} router={router} />;
+}
+
+// ==========================================
+// 4. ESTILOS
+// ==========================================
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
@@ -430,136 +583,191 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
   content: { padding: 20 },
-  dateText: {
-    fontSize: 20,
-    fontWeight: "bold",
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 12,
+    marginTop: 10,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    marginBottom: 10,
+  },
+  tipoContainer: {
+    flexDirection: "row",
+    backgroundColor: "#FFF",
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  tipoButton: { flex: 1, paddingVertical: 10, alignItems: "center" },
+  tipoButtonActive: { backgroundColor: "#FF8C00", borderRadius: 25 },
+  tipoButtonText: { fontSize: 12, color: "#6B7280", fontWeight: "600" },
+  tipoButtonTextActive: { color: "#FFF", fontWeight: "bold" },
+  input: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: "#111827",
     marginBottom: 20,
   },
-  summaryBox: {
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 25,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  summaryTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 15,
-    color: "#111827",
-  },
-  macrosContainer: {
+  searchContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-  },
-  macroItem: { alignItems: "center", flex: 1 },
-  macroValue: { fontSize: 16, fontWeight: "bold", color: "#111827" },
-  macroLabel: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  progressBarTrack: {
-    width: "80%",
-    height: 4,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 2,
-    marginTop: 8,
-  },
-  progressBarFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: 4,
-    borderRadius: 2,
-  },
-  macroMeta: { fontSize: 10, color: "#111827", fontWeight: "600" },
-  divider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#F3F4F6",
-    marginHorizontal: 2,
-  },
-  mealContainer: { marginBottom: 20 },
-  mealHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  mealTitle: { fontSize: 18, fontWeight: "bold", color: "#111827" },
-  mealHeaderRight: { flexDirection: "row", alignItems: "center", gap: 12 },
-  mealTotal: { fontSize: 14, color: "#111827", fontWeight: "600" },
-  addMealButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardWrapper: {
     backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: "#111827" },
+  cardList: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    marginBottom: 20,
   },
-  foodCard: {
+  foodItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#E5E7EB",
   },
-  lastCard: { borderBottomWidth: 0 },
-  foodInfoContainer: { flexDirection: "row", alignItems: "center" },
-  iconPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    marginRight: 14,
-    justifyContent: "center",
+  foodItemLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
+  emojiBox: {
+    backgroundColor: "#F3F4F6",
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    marginRight: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
-  emojiIcon: { fontSize: 24 },
-  foodName: { fontSize: 15, fontWeight: "700", color: "#111827" },
-  portion: { fontSize: 13, color: "#6B7280", marginTop: 2 },
-  calories: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  tabContainer: {
+  foodItemName: { fontSize: 14, fontWeight: "700", color: "#111827" },
+  foodItemPortion: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  foodItemRight: { flexDirection: "row", alignItems: "center" },
+  foodItemCalories: { fontSize: 13, fontWeight: "700", color: "#111827" },
+  actionButtonAdd: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FF8C00",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionButtonRemove: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#F9FAFB",
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  totalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#FFF",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    marginBottom: 16,
   },
-  tab: { alignItems: "center" },
-  tabActive: { alignItems: "center" },
-  tabText: { fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: "500" },
-  tabTextActive: {
-    fontSize: 10,
-    color: "#FF8C00",
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  botaoAdicionarRefeicao: {
+  totalLabel: { fontSize: 15, fontWeight: "700", color: "#111827" },
+  totalValue: { fontSize: 15, fontWeight: "700", color: "#111827" },
+  saveButton: {
     backgroundColor: "#FF8C00",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  saveButtonText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
+  btnCriarPersonalizado: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  btnCriarPersonalizadoTexto: {
+    color: "#FF8C00",
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    width: "85%",
+    borderRadius: 16,
+    padding: 24,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#111827",
+    textAlign: "center",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    fontSize: 15,
+    color: "#111827",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 10,
   },
-  botaoAdicionarRefeicaoTexto: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
+  modalBtnCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    marginRight: 8,
   },
+  modalBtnCancelText: { color: "#4B5563", fontWeight: "bold", fontSize: 15 },
+  modalBtnSave: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: "#FF8C00",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  modalBtnSaveText: { color: "#FFF", fontWeight: "bold", fontSize: 15 },
 });
