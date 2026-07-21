@@ -17,7 +17,7 @@ import {
 import { PlanoAlimentarService } from "../src/services/PlanoAlimentarService";
 
 // ==========================================
-// 1. CLASSES DE MODELO (antes eram interfaces)
+// 1. CLASSES DE MODELO
 // ==========================================
 
 export class Alimento {
@@ -154,7 +154,7 @@ class NovaRefeicaoScreen extends React.Component<
   NovaRefeicaoProps,
   NovaRefeicaoState
 > {
-  // Catálogo de alimentos disponíveis (não muda, então não precisa ir pro state)
+  // Catálogo de alimentos disponíveis
   private readonly alimentosDisponiveis: Alimento[] = [
     new Alimento("1", "Frango grelhado", "165 kcal / 100g", 165, "🍗"),
     new Alimento("2", "Arroz integral", "111 kcal / 100g", 111, "🍚"),
@@ -232,7 +232,7 @@ class NovaRefeicaoScreen extends React.Component<
   };
 
   // ==========================================
-  // SALVAR NO FIREBASE (cria OU atualiza, sem duplicar)
+  // SALVAR NO FIREBASE
   // ==========================================
   handleSalvar = async (): Promise<void> => {
     const { nomeRefeicao, tipoSelecionado, itensAdicionados } = this.state;
@@ -243,21 +243,31 @@ class NovaRefeicaoScreen extends React.Component<
       return;
     }
 
-    // CORREÇÃO: Transformando as classes Alimento em objetos simples do JS
-    const itensParaFirebase = itensAdicionados.map((alimento) => ({
-      ...alimento,
+    if (itensAdicionados.length === 0) {
+      Alert.alert("Aviso", "Adicione pelo menos um alimento à sua refeição!");
+      return;
+    }
+
+    // Aqui transformamos a classe em objeto simples e trocamos undefined por null
+    // Isso impede o Firebase de dar aquele erro de "Unsupported field value: undefined"
+    const itensParaFirebase = itensAdicionados.map((item) => ({
+      id: item.id,
+      nome: item.nome,
+      porcao: item.porcao,
+      calorias: item.calorias,
+      emoji: item.emoji || null,
     }));
 
     const dadosRefeicao = {
       tipo: tipoSelecionado,
       nome: nomeRefeicao,
-      itens: itensParaFirebase, // Agora o Firebase vai aceitar!
+      itens: itensParaFirebase, // Enviando a lista limpa para o banco!
     };
 
     this.setState({ salvando: true });
     try {
       if (this.isEditando && refeicaoEditando) {
-        // Atualiza a refeição existente no Firestore (não cria uma nova)
+        // Atualiza a refeição existente no Firestore
         await PlanoAlimentarService.atualizarRefeicao(
           refeicaoEditando.id,
           dadosRefeicao as any,
@@ -269,7 +279,7 @@ class NovaRefeicaoScreen extends React.Component<
         Alert.alert("Sucesso", "Refeição salva no seu plano!");
       }
 
-      // Avisa o componente pai, mantendo as classes intactas no seu App
+      // Avisa o componente pai e volta para a tela inicial
       onSalvar(
         new Refeicao(
           this.isEditando ? refeicaoEditando!.id : Math.random().toString(),
@@ -333,7 +343,7 @@ class NovaRefeicaoScreen extends React.Component<
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor="#FF8C00" />
 
-        {/* CABEÇALHO */}
+        {/* CABEÇALHO COM A LIXEIRA PADRONIZADA */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => (onVoltar ? onVoltar() : router.back())}
@@ -343,12 +353,15 @@ class NovaRefeicaoScreen extends React.Component<
           <Text style={styles.headerTitle}>
             {this.isEditando ? "Editar refeição" : "Nova refeição"}
           </Text>
+
           {this.isEditando ? (
             <TouchableOpacity onPress={this.handleDeletar}>
               <Feather name="trash-2" size={24} color="#FFF" />
             </TouchableOpacity>
           ) : (
-            <View style={{ width: 24 }} />
+            <View style={{ opacity: 0.4 }}>
+              <Feather name="trash-2" size={24} color="#FFF" />
+            </View>
           )}
         </View>
 
@@ -558,9 +571,6 @@ class NovaRefeicaoScreen extends React.Component<
 // ==========================================
 // 3. WRAPPER FUNCIONAL (só pra ligar o useRouter do expo-router à classe)
 // ==========================================
-// "useRouter" é um hook e só pode ser chamado dentro de uma função componente.
-// Esse wrapper existe unicamente pra obter o router e passá-lo como prop pra
-// classe — nenhuma regra de negócio vive aqui.
 interface WrapperProps {
   refeicaoEditando?: Refeicao | null;
   onSalvar: (refeicao: Refeicao) => void;
