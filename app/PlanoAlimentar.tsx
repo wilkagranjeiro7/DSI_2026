@@ -104,7 +104,8 @@ interface MealSectionProps {
   totalCalories: number;
   foods: Alimento[];
   onEditPress: () => void;
-  onFinalizar: () => void; // Nova propriedade
+  onFinalizar: () => void;
+  onDeletePress: () => void;
 }
 
 interface PlanoAlimentarState {
@@ -171,13 +172,30 @@ class FoodCard extends React.Component<FoodCardProps> {
 
 class MealSection extends React.Component<MealSectionProps> {
   render() {
-    const { title, totalCalories, foods, onEditPress, onFinalizar } =
-      this.props;
+    const {
+      title,
+      totalCalories,
+      foods,
+      onEditPress,
+      onFinalizar,
+      onDeletePress,
+    } = this.props;
 
     return (
       <View style={styles.mealContainer}>
         <View style={styles.mealHeader}>
-          <Text style={styles.mealTitle}>{title}</Text>
+          {/* 👇 LIXEIRA AO LADO DO TIPO DE REFEIÇÃO 👇 */}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.mealTitle}>{title}</Text>
+            <TouchableOpacity
+              onPress={onDeletePress}
+              style={{ marginLeft: 10, padding: 5 }}
+            >
+              <Feather name="trash-2" size={20} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+          {/* ☝️ =================================== ☝️ */}
+
           <View style={styles.mealHeaderRight}>
             <Text style={styles.mealTotal}>{totalCalories} kcal</Text>
 
@@ -277,7 +295,6 @@ class PlanoAlimentarScreen extends React.Component<
     }
   }
 
-  // CORREÇÃO: Transformando os dados "crus" em instâncias da classe Refeicao
   carregarRefeicoes = async (): Promise<void> => {
     try {
       const dados = await PlanoAlimentarService.buscarRefeicoes();
@@ -291,7 +308,6 @@ class PlanoAlimentarScreen extends React.Component<
     }
   };
 
-  // Nova função para finalizar refeição
   finalizarRefeicao = async (refeicao: Refeicao) => {
     try {
       await PlanoAlimentarService.finalizarRefeicao(refeicao.id);
@@ -305,16 +321,29 @@ class PlanoAlimentarScreen extends React.Component<
 
   deletarRefeicao = async (idRefeicao: string): Promise<void> => {
     try {
-      await PlanoAlimentarService.deletarRefeicao(idRefeicao);
-      this.setState((prevState) => ({
-        refeicoes: prevState.refeicoes.filter((r) => r.id !== idRefeicao),
-      }));
-      Alert.alert("Excluído", "A refeição foi removida do seu plano.");
+      Alert.alert(
+        "Excluir Refeição",
+        "Tem certeza que deseja apagar essa refeição inteira?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Excluir",
+            style: "destructive",
+            onPress: async () => {
+              await PlanoAlimentarService.deletarRefeicao(idRefeicao);
+              this.setState((prevState) => ({
+                refeicoes: prevState.refeicoes.filter(
+                  (r) => r.id !== idRefeicao,
+                ),
+              }));
+              Alert.alert("Excluído", "A refeição foi removida do seu plano.");
+            },
+          },
+        ],
+      );
     } catch (error) {
       console.error("Erro ao deletar refeição:", error);
       Alert.alert("Erro", "Não foi possível excluir a refeição.");
-    } finally {
-      this.setState({ telaAtual: "PlanoAlimentar", refeicaoEditando: null });
     }
   };
 
@@ -359,7 +388,14 @@ class PlanoAlimentarScreen extends React.Component<
         <Header title="Plano Alimentar" iconName="calendar" />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.dateText}>Hoje, 15 de abril</Text>
+          {/* Data Dinâmica */}
+          <Text style={styles.dateText}>
+            Hoje,{" "}
+            {new Date().toLocaleDateString("pt-BR", {
+              day: "numeric",
+              month: "long",
+            })}
+          </Text>
 
           <View style={styles.summaryBox}>
             <Text style={styles.summaryTitle}>Resumo do dia</Text>
@@ -380,7 +416,7 @@ class PlanoAlimentarScreen extends React.Component<
                 </View>
                 <Text style={styles.macroMeta}>Meta 2.000</Text>
               </View>
-              {/* ... (Demais itens de macro omitidos para concisão, manter o original) ... */}
+              {/* Restante dos macros */}
             </View>
           </View>
 
@@ -392,6 +428,7 @@ class PlanoAlimentarScreen extends React.Component<
               foods={refeicao.itens}
               onEditPress={() => this.abrirEditarRefeicao(refeicao)}
               onFinalizar={() => this.finalizarRefeicao(refeicao)}
+              onDeletePress={() => this.deletarRefeicao(refeicao.id)}
             />
           ))}
 
@@ -440,6 +477,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111827",
     marginBottom: 20,
+    textTransform: "capitalize",
   },
   summaryBox: {
     backgroundColor: "#FFF",
