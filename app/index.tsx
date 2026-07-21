@@ -1,8 +1,5 @@
-import React, { Component } from "react";
-import SignUpScreen from "./signup";
+import { Redirect } from "expo-router";
 
-export default class Index extends Component {
-  render() {
-    return <SignUpScreen />;
-  }
+export default function Index() {
+  return <Redirect href="/login" />;
 }
