@@ -243,10 +243,15 @@ class NovaRefeicaoScreen extends React.Component<
       return;
     }
 
+    // CORREÇÃO: Transformando as classes Alimento em objetos simples do JS
+    const itensParaFirebase = itensAdicionados.map((alimento) => ({
+      ...alimento,
+    }));
+
     const dadosRefeicao = {
       tipo: tipoSelecionado,
       nome: nomeRefeicao,
-      itens: itensAdicionados,
+      itens: itensParaFirebase, // Agora o Firebase vai aceitar!
     };
 
     this.setState({ salvando: true });
@@ -264,13 +269,13 @@ class NovaRefeicaoScreen extends React.Component<
         Alert.alert("Sucesso", "Refeição salva no seu plano!");
       }
 
-      // Avisa o componente pai (caso ele precise atualizar algo)
+      // Avisa o componente pai, mantendo as classes intactas no seu App
       onSalvar(
         new Refeicao(
           this.isEditando ? refeicaoEditando!.id : Math.random().toString(),
           dadosRefeicao.tipo,
           dadosRefeicao.nome,
-          dadosRefeicao.itens,
+          itensAdicionados, // Usa a classe original aqui para não quebrar a tela
         ),
       );
     } catch (error) {

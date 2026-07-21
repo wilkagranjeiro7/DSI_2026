@@ -277,10 +277,15 @@ class PlanoAlimentarScreen extends React.Component<
     }
   }
 
+  // CORREÇÃO: Transformando os dados "crus" em instâncias da classe Refeicao
   carregarRefeicoes = async (): Promise<void> => {
     try {
       const dados = await PlanoAlimentarService.buscarRefeicoes();
-      this.setState({ refeicoes: dados });
+      // O map passa por cada item do Firebase e converte usando a função que você criou
+      const refeicoesInstanciadas = dados.map((item: any) =>
+        Refeicao.fromPlain(item),
+      );
+      this.setState({ refeicoes: refeicoesInstanciadas });
     } catch (error) {
       console.error("Erro ao carregar plano alimentar:", error);
     }
