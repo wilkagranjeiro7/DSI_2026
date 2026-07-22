@@ -197,6 +197,9 @@ export default class HomeScreen extends Component<object, HomeState> {
         <View style={styles.container}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
+              <TouchableOpacity onPress={() => router.back()}>
+               <Ionicons name="arrow-back" size={22} color={HomeColors.white} />
+              </TouchableOpacity>
               <MaterialCommunityIcons
                 name="dumbbell"
                 size={24}
@@ -206,6 +209,7 @@ export default class HomeScreen extends Component<object, HomeState> {
               <Text style={styles.headerTitle}>FitMatch</Text>
             </View>
             <View style={styles.headerRight}>
+              <Feather name="help-circle" size={20} color={HomeColors.white} />
               <TouchableOpacity onPress={this.handleSignOut}>
                 <Feather name="log-out" size={20} color={HomeColors.white} />
               </TouchableOpacity>
@@ -240,6 +244,15 @@ export default class HomeScreen extends Component<object, HomeState> {
                 <Text style={styles.sectionTitle}>Aquecimento</Text>
                 <Text style={styles.sectionText}>2 min de polichinelos</Text>
               </View>
+              <View style={styles.sectionBlock}>
+               <Text style={styles.sectionTitle}>Alongamento</Text>
+               <Text style={styles.sectionText}>5 min de alongamento</Text>
+             </View>
+             <View style={styles.sectionBlock}>
+              <Text style={styles.sectionTitle}>Treino</Text>
+              <Text style={styles.sectionText}>3x flexao</Text>
+              <Text style={styles.sectionText}>3x agachamento</Text>
+             </View>
               <TouchableOpacity style={styles.mainButton}>
                 <Text style={styles.mainButtonText}>Iniciar treino</Text>
               </TouchableOpacity>
@@ -251,6 +264,14 @@ export default class HomeScreen extends Component<object, HomeState> {
 
             {/* Grid de Cards */}
             <View style={styles.grid}>
+              <SmallCard
+                title="Biblioteca de Exercicios"
+                subtitle="Veja todos os exercicios"
+                onPress={() => router.push("/meus-exercicios")}
+                icon={
+                  <Ionicons name="library-outline" size={54} color={HomeColors.primary} />
+                }
+              />
               <SmallCard
                 title="Locais para treinar"
                 subtitle="Encontre locais próximos"
@@ -471,6 +492,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
+    elevation: 5,           // <-- Colei aqui!
+    shadowColor: "#000",
     zIndex: 9999,
   },
   toastText: {
